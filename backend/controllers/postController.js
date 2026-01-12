@@ -1,12 +1,11 @@
 const pool = require('../config/db');
 
-
 const postController = {
     getAllPosts: async (req, res) => {
         let connection;
         try {
             connection = await pool.getConnection();
-            
+
             // Get all posts with user details
             const [posts] = await connection.query(
                 `SELECT p.id, p.content, p.imageUrl, p.userId, p.likeCount, p.createdAt, p.updatedAt, u.username, u.firstName, u.lastName, u.email, u.profileImage
@@ -15,36 +14,34 @@ const postController = {
                 ON p.userId = u.id
                 ORDER BY p.createdAt DESC`
             );
-            
-            
-            const postsWithLikes = await Promise.all(
-                posts.map(async(post)=> {
-                 
-                 const [likes] = await connection.query(
-                    `SELECT * FROM likes WHERE postId = ?`, [post.id]
-                 )
 
-                 return {
-                 _id: post.id,
-                  content: post.content,
-                    imgContent: post.imageUrl,
-                    username: post.username,
-                    firstName: post.firstName,
-                    lastName: post.lastName,
-                    email: post.email,
-                    image: post.profileImage,
-                    likes : {
-                        likeCount: post.likeCount,
-                        likedBy : likes.map(like => like.userId),
-                    },
-                    createdAt: post.createdAt,
-                    updatedAt: post.updatedAt,
-                 }
+            const postsWithLikes = await Promise.all(
+                posts.map(async (post) => {
+                    const [likes] = await connection.query(
+                        `SELECT * FROM likes WHERE postId = ?`, [post.id]
+                    );
+
+                    return {
+                        _id: post.id,
+                        content: post.content,
+                        imgContent: post.imageUrl,
+                        username: post.username,
+                        firstName: post.firstName,
+                        lastName: post.lastName,
+                        email: post.email,
+                        image: post.profileImage,
+                        likes: {
+                            likeCount: post.likeCount,
+                            likedBy: likes.map(like => like.userId),
+                        },
+                        createdAt: post.createdAt,
+                        updatedAt: post.updatedAt,
+                    };
                 })
-            )
-            
+            );
+
             connection.release();
-            
+
             res.status(200).json({
                 message: 'Posts fetched successfully',
                 posts: postsWithLikes
@@ -56,6 +53,5 @@ const postController = {
         }
     }
 };
-
 
 module.exports = postController;
