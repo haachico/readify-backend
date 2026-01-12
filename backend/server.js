@@ -23,6 +23,12 @@ const authRoutes = require('./routes/authRoutes');
 app.use('/api/auth', authRoutes);
 
 
+const postRoutes = require('./routes/postRoutes');
+app.use('/api/posts', postRoutes);
+
+
+const userRoutes = require('./routes/userRoutes');
+app.use('/api/users', userRoutes);
 
 // Basic route to test server
 app.get('/', (req, res) => {
