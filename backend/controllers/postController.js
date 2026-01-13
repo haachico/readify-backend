@@ -104,7 +104,64 @@ const postController = {
         if (connection) connection.release();
         res.status(500).json({ message: 'Server error fetching trending posts', error: error.message });
     }
-}
+},
+
+
+    getBookmarkedPosts: async (req, res) => {
+        let connection;
+        try {
+            const userId = req.auth.userId; // From authMiddleware
+            connection = await pool.getConnection();
+            
+
+            const [posts] = await connection.query(
+                `SELECT p.id, p.content, p.imageUrl, p.userId, p.likeCount, p.createdAt, p.updatedAt, u.username, u.firstName, u.lastName, u.email, u.profileImage
+                FROM posts p
+                INNER JOIN bookmarks b ON p.id = b.postId AND b.userId = ?
+                LEFT JOIN users u ON p.userId = u.id
+                ORDER BY b.createdAt DESC`, 
+                [userId]
+            );
+
+            const postsWithLikes = await Promise.all(
+                posts.map(async (post) => {
+                    const [likes] = await connection.query(
+                        `SELECT userId FROM likes WHERE postId = ?`, [post.id]
+                    );
+
+                    return {
+                        _id: post.id,
+                        content: post.content,
+                        imgContent: post.imageUrl,
+                        username: post.username,
+                        firstName: post.firstName,
+                        lastName: post.lastName,
+                        email: post.email,
+                        image: post.profileImage,
+                        likes: {
+                            likeCount: post.likeCount,
+                            likedBy: likes.map(like => like.userId),
+                        },
+                        createdAt: post.createdAt,
+                        updatedAt: post.updatedAt,
+                        isBookmarked: true,
+                    };
+                })
+            );
+
+            connection.release();
+
+            res.status(200).json({
+                message: 'Bookmarked posts fetched successfully',
+                posts: postsWithLikes
+            });
+        } catch(error) {
+            console.error('Get bookmarked posts error:', error);
+            if (connection) connection.release();
+            res.status(500).json({ message: 'Server error fetching bookmarked posts', error: error.message });
+        }
+    }
+
 };
 
 

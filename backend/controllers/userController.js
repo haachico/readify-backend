@@ -33,10 +33,13 @@ const userController = {
             const [users] = await connection.query(
                 `SELECT 
                   u.*,
-                  (SELECT COUNT(*) FROM follows WHERE followingId = u.id) as followers,
-                  (SELECT COUNT(*) FROM follows WHERE followerId = u.id) as followings
+                  COUNT(DISTINCT f1.id) as followers,
+                  COUNT(DISTINCT f2.id) as followings
                 FROM users as u 
-                WHERE username = ?`, 
+                LEFT JOIN follows f1 ON f1.followingId = u.id
+                LEFT JOIN follows f2 ON f2.followerId = u.id
+                WHERE u.username = ?
+                GROUP BY u.id`, 
                 [username]
             )
             if (users.length === 0) {
