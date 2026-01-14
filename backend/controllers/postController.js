@@ -160,6 +160,108 @@ const postController = {
             if (connection) connection.release();
             res.status(500).json({ message: 'Server error fetching bookmarked posts', error: error.message });
         }
+    },
+
+    createPost : async (req, res) => {
+    
+        try {
+
+           const {content, imgContent} = req.body;
+              const userId = req.auth.userId;
+            const connection = await pool.getConnection();
+
+            const [result ] = await connection.query(
+                `INSERT INTO posts (content, imageUrl, userId, likeCount, createdAt, updatedAt) VALUES (?, ?, ?, 0, NOW(), NOW())`,
+                [content, imgContent, userId]
+            )
+
+             const [posts] = await connection.query(
+                `SELECT p.id, p.content, p.imageUrl, p.userId, p.likeCount, p.createdAt, p.updatedAt, u.username, u.firstName, u.lastName, u.email, u.profileImage
+                FROM posts as p
+                LEFT JOIN users as u
+                ON p.userId = u.id
+                Where p.userId = ?
+                ORDER BY p.createdAt DESC
+                LIMIT 1`, 
+                [userId]
+             )
+
+
+             const postsWithLikes = await Promise.all(
+                posts.map(async (post) => {
+                    const [likes] = await connection.query(
+                        `SELECT * FROM likes WHERE postId = ?`, [post.id]
+                    );
+
+                    return {
+                        _id: post.id,
+                        content: post.content,
+                        imgContent: post.imageUrl,
+                        username: post.username,
+                        firstName: post.firstName,
+                        lastName: post.lastName,
+                        email: post.email,
+                        image: post.profileImage,
+                        likes: {
+                            likeCount: post.likeCount,
+                            likedBy: likes.map(like => like.userId),
+                        },
+                        createdAt: post.createdAt,
+                        updatedAt: post.updatedAt,
+                    };
+                })
+            );
+
+            connection.release();
+
+            res.status(201).json({
+                message: 'Post created successfully',
+                posts:  postsWithLikes
+            });
+        }
+
+        catch (error) {
+            console.error('Create post error:', error);
+            res.status(500).json({ message: 'Server error creating post', error: error.message });
+        }
+
+    },
+
+
+    editPost : async (req, res) => {
+        try {
+        
+            const { postId } = req.params;
+            const { content, imgContent } = req.body;
+            const userId = req.auth.userId;
+         
+            const connection = await pool.getConnection();
+
+            const [posts] = await connection.query(
+                `SELECT * FROM posts WHERE id = ? AND userId = ?`, 
+                [postId, userId]
+            )
+
+            if (posts.length === 0) {
+                connection.release();
+                return res.status(403).json({ message: 'Post not found or unauthorized' });
+            }
+
+            await connection.query(
+                `UPDATE posts SET content = ?, imageUrl = ?, updatedAt = NOW() WHERE id = ?`,
+                [content, imgContent, postId]
+            );
+
+
+            res.status(200).json({ message: 'Post updated successfully' });
+
+            connection.release();
+
+        }
+        catch (error) {
+            console.error('Edit post error:', error);
+            res.status(500).json({ message: 'Server error editing post', error: error.message });
+        }
     }
 
 };
