@@ -369,10 +369,42 @@ const postController = {
             console.error('Remove bookmark error:', error);
             res.status(500).json({ message: 'Server error removing bookmark', error: error.message });
         }
-    }
-    
+    },
 
-};
+    deletePost : async (req, res) => {
+        try {
+            const { postId } = req.params;
+            const userId = req.auth.userId;
+    
+            const connection = await pool.getConnection();
+
+            const [posts] = await connection.query(
+                `SELECT * FROM posts WHERE id = ? AND userId = ?`, 
+                [postId, userId]
+            )
+
+            if (posts.length === 0) {
+                connection.release();
+                return res.status(403).json({ message: 'Post not found or unauthorized' });
+            }
+
+            await connection.query(
+                `DELETE FROM posts WHERE id = ? AND userId = ?`,
+                [postId, userId]
+            );
+
+            connection.release();
+
+            res.status(200).json({ message: 'Post deleted successfully' });
+
+        }
+        catch(error){
+                    console.error('Delete post error:', error);
+                    res.status(500).json({ message: 'Server error deleting post', error: error.message });
+                }
+            }
+
+    }
 
 
 
