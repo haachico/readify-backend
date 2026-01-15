@@ -6,9 +6,8 @@ const postController = {
         try {
             connection = await pool.getConnection();
 
-            // Get all posts with user details
             const [posts] = await connection.query(
-                `SELECT p.id, p.content, p.imageUrl, p.userId, p.likeCount, p.createdAt, p.updatedAt, u.username, u.firstName, u.lastName, u.email, u.profileImage
+                `SELECT p.id, p.content, p.imageUrl, p.userId, p.likeCount,  p.createdAt, p.updatedAt, u.username, u.firstName, u.lastName, u.email, u.profileImage
                 FROM posts as p
                 LEFT JOIN users as u 
                 ON p.userId = u.id
@@ -105,6 +104,66 @@ const postController = {
         res.status(500).json({ message: 'Server error fetching trending posts', error: error.message });
     }
 },
+
+
+ getFeedPosts: async(req, res) => {
+
+    try {
+
+        const userId = req.auth.userId; // From authMiddleware
+
+        const connection = await pool.getConnection();
+
+           const [posts] = await connection.query(
+            `SELECT p.id, p.content, p.imageUrl, p.userId, p.likeCount, p.createdAt, p.updatedAt, u.username, u.firstName, u.lastName, u.email, u.profileImage, case when b.id is not null then 1 else 0 end as isBookmarked
+            FROM posts p
+            LEFT JOIN users u ON p.userId = u.id
+            LEFT JOIN bookmarks b ON p.id = b.postId AND b.userId = ?
+            WHERE p.userId = ? OR p.userId IN (
+                SELECT followingId FROM follows WHERE followerId = ?
+            )
+            ORDER BY p.createdAt DESC`,
+            [userId, userId, userId]
+        );
+
+          const postsWithLikes = await Promise.all(
+                posts.map(async (post) => {
+                    const [likes] = await connection.query(
+                        `SELECT * FROM likes WHERE postId = ?`, [post.id]
+                    );
+
+                    return {
+                        _id: post.id,
+                        content: post.content,
+                        imgContent: post.imageUrl,
+                        username: post.username,
+                        firstName: post.firstName,
+                        lastName: post.lastName,
+                        email: post.email,
+                        image: post.profileImage,
+                        isBookmarked: post.isBookmarked === 1,
+                        likes: {
+                            likeCount: post.likeCount,
+                            likedBy: likes.map(like => like.userId),
+                        },
+                        createdAt: post.createdAt,
+                        updatedAt: post.updatedAt,
+                    };
+                })
+            );
+
+            connection.release();
+
+            res.status(200).json({
+                message: 'Feed posts fetched successfully',
+                posts: postsWithLikes
+            });
+    }
+    catch (error) {
+        console.error('Get feed posts error:', error);
+        res.status(500).json({ message: 'Server error fetching feed posts', error: error.message });
+    }
+ },
 
 
     getBookmarkedPosts: async (req, res) => {
@@ -262,7 +321,56 @@ const postController = {
             console.error('Edit post error:', error);
             res.status(500).json({ message: 'Server error editing post', error: error.message });
         }
+    },
+
+    bookmarkPost: async (req, res) => {
+   
+        try {
+
+            const { postId } = req.params;
+            const userId = req.auth.userId;
+
+            const connection = await pool.getConnection();
+            
+            await connection.query(
+                `INSERT INTO bookmarks (userId, postId, createdAt) VALUES (?, ?, NOW())`,
+                [userId, postId]
+            );
+
+            connection.release();
+
+
+            res.status(200).json({ message: 'Post bookmarked successfully' });
+
+        }
+        catch(error){
+            console.error('Bookmark post error:', error);
+            res.status(500).json({ message: 'Server error bookmarking post', error: error.message });
+        }
+          
+    },
+
+    removeBookmark: async (req, res) => {
+        try {
+
+            const { postId } = req.params;
+            const userId = req.auth.userId;
+            const connection = await pool.getConnection();
+
+            await connection.query(
+                `DELETE FROM bookmarks WHERE userId = ? AND postId = ?`,
+                [userId, postId]
+            );
+
+            connection.release();
+            res.status(200).json({ message: 'Bookmark removed successfully' });
+        }
+        catch(error){
+            console.error('Remove bookmark error:', error);
+            res.status(500).json({ message: 'Server error removing bookmark', error: error.message });
+        }
     }
+    
 
 };
 
