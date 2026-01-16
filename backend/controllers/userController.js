@@ -61,6 +61,43 @@ const userController = {
             if (connection) connection.release();
             res.status(500).json({ message: 'Server error fetching user', error: error.message });
         }
+    },
+
+     followUser: async (req, res) => {
+         try {
+
+            const followerId = req.auth.userId;
+            const { followingId } = req.body;
+            if (followerId === followingId) {
+                return res.status(400).json({ message: 'You cannot follow yourself' });
+            }
+        
+          const connection = await pool.getConnection();
+            const [existingFollow] = await connection.query(
+                'SELECT id FROM follows WHERE followerId = ? AND followingId = ?',
+                [followerId, followingId]
+            );
+
+            if (existingFollow.length > 0) {
+               
+                await connection.query(
+                    'DELETE FROM follows WHERE followerId = ? AND followingId = ?',
+                    [followerId, followingId]
+                );
+            } else {
+                await connection.query(
+                    'INSERT INTO follows (followerId, followingId) VALUES (?, ?)',
+                    [followerId, followingId]
+                );
+            }
+            connection.release();
+            return res.status(200).json({ message: 'Follow/unfollow action completed successfully' });
+         }
+         catch (error) {
+           console.error('Follow user error:', error);
+           return res.status(500).json({ message: 'Server error during follow user' });
+         }
+
     }
 }
 

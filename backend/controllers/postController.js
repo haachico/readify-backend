@@ -402,7 +402,47 @@ const postController = {
                     console.error('Delete post error:', error);
                     res.status(500).json({ message: 'Server error deleting post', error: error.message });
                 }
+            },
+
+
+        handleLikeDislike: async (req, res) => {
+        try {
+            const { postId } = req.params;
+            const userId = req.auth.userId;
+            const connection = await pool.getConnection();  
+
+            const [likes] = await connection.query(
+                `SELECT * FROM likes WHERE postId = ? AND userId = ?`,
+                [postId, userId]
+            );
+
+            if (likes.length > 0) {
+                await connection.query(
+                    `DELETE FROM likes WHERE postId = ? AND userId = ?`,
+                    [postId, userId]
+                );
+                await connection.query(
+                    `UPDATE posts SET likeCount = likeCount - 1 WHERE id = ?`,
+                    [postId]
+                );
+            } else {
+                await connection.query(
+                    `INSERT INTO likes (postId, userId, createdAt) VALUES (?, ?, NOW())`,
+                    [postId, userId]
+                );
+                await connection.query(
+                    `UPDATE posts SET likeCount = likeCount + 1 WHERE id = ?`,
+                    [postId]
+                );
             }
+            connection.release();
+            res.status(200).json({ message: 'Like/Dislike handled successfully' });
+         }   
+        catch (error) {
+            console.error('Like/Dislike post error:', error);
+            res.status(500).json({ message: 'Server error handling like/dislike', error: error.message });
+        }
+    }
 
     }
 

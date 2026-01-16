@@ -1,7 +1,7 @@
 const express = require('express');
 
 const router = express.Router();
-const {getAllPosts, getTrendingPosts, getBookmarkedPosts, createPost, editPost, bookmarkPost, removeBookmark, getFeedPosts, deletePost} = require('../controllers/postController');
+const {getAllPosts, getTrendingPosts, getBookmarkedPosts, createPost, editPost, bookmarkPost, removeBookmark, getFeedPosts, deletePost, handleLikeDislike} = require('../controllers/postController');
 const authMiddleware = require('../middleware/authMiddleware');
 
 router.get('/', getAllPosts);
@@ -13,5 +13,6 @@ router.get('/bookmarks', authMiddleware, getBookmarkedPosts);
 router.post('/bookmarks/:postId', authMiddleware, bookmarkPost);
 router.post('/remove-bookmark/:postId', authMiddleware, removeBookmark);
 router.delete('/:postId', authMiddleware, deletePost);
+router.post('/like/:postId', authMiddleware, handleLikeDislike)
 
 module.exports = router;
