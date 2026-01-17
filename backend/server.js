@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
-const pool = require('./config/db');
+const pool = require('./src/config/db');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -19,14 +19,14 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 // });
 
 // Routes
-const authRoutes = require('./routes/authRoutes');
+const authRoutes = require('./src/routes/authRoutes');
 app.use('/api/auth', authRoutes);
 
 
-const postRoutes = require('./routes/postRoutes');
+const postRoutes = require('./src/routes/postRoutes');
 app.use('/api/posts', postRoutes);
 
-const userRoutes = require('./routes/userRoutes');
+const userRoutes = require('./src/routes/userRoutes');
 app.use('/api/users', userRoutes);
 
 // Basic route to test server
