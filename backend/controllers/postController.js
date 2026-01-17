@@ -112,6 +112,17 @@ const postController = {
 
         const userId = req.auth.userId; // From authMiddleware
 
+        const {sort} = req.query;
+
+        let orderBy = 'p.createdAt ASC';
+
+        if(sort === 'latest') {
+            orderBy = 'p.createdAt DESC';
+        }
+        if (sort === 'trending') {
+            orderBy = 'p.likeCount DESC';
+        }
+
         const connection = await pool.getConnection();
 
            const [posts] = await connection.query(
@@ -122,7 +133,7 @@ const postController = {
             WHERE p.userId = ? OR p.userId IN (
                 SELECT followingId FROM follows WHERE followerId = ?
             )
-            ORDER BY p.createdAt DESC`,
+            ORDER BY ${orderBy}`,
             [userId, userId, userId]
         );
 

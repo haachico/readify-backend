@@ -63,6 +63,40 @@ const userController = {
         }
     },
 
+    searchUsers: async (req, res) => {
+        let connection;
+        try {
+            const { query } = req.query;
+            
+            if (!query || query.trim() === '') {
+                return res.status(200).json({
+                    message: 'No search query provided',
+                    users: []
+                });
+            }
+
+            connection = await pool.getConnection();
+            const [users] = await connection.query(
+                `SELECT * FROM users 
+                 WHERE username LIKE ? OR firstName LIKE ? OR lastName LIKE ? 
+                 ORDER BY username ASC 
+                 LIMIT 10`,
+                [`%${query}%`, `%${query}%`, `%${query}%`]
+            );
+
+            connection.release();
+
+            res.status(200).json({
+                message: 'Users found',
+                users: users
+            });
+        } catch (error) {
+            console.error('Search users error:', error);
+            if (connection) connection.release();
+            res.status(500).json({ message: 'Server error searching users', error: error.message });
+        }
+    },
+
      followUser: async (req, res) => {
          try {
 
@@ -98,6 +132,29 @@ const userController = {
            return res.status(500).json({ message: 'Server error during follow user' });
          }
 
+    },
+
+    updateProfile: async (req, res) => {
+        try {
+            const userId = req.auth.userId;
+
+            const { profileImage, about, link } = req.body;
+
+            const connection = await pool.getConnection();
+           
+            await connection.query(
+                'UPDATE users SET profileImage = ?, about = ?, link = ? WHERE id = ?',
+                [profileImage, about, link, userId]
+            );
+
+            connection.release();
+
+            res.status(200).json({ message: 'Profile updated successfully' });
+        }
+        catch(error) {
+            console.error('Update profile error:', error);
+            res.status(500).json({ message: 'Server error updating profile', error: error.message });
+        }
     }
 }
 
