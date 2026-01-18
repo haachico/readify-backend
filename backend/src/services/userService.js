@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const redisClient = require('../config/redis');
 
 const userService = {
   async getAllUsers() {
@@ -21,6 +22,16 @@ const userService = {
   async getUserByUsername(username) {
     let connection;
     try {
+      const cachedKey = `user:${username}`;
+      const cachedUser = await redisClient.get(cachedKey);
+
+      if (cachedUser) {
+        return {
+          message: 'User fetched successfully (from cache)',
+          user: JSON.parse(cachedUser)
+        };
+      }
+
       connection = await pool.getConnection();
       const [users] = await connection.query(
         `SELECT 
@@ -42,6 +53,8 @@ const userService = {
         };
       }
 
+
+      await redisClient.set(cachedKey, JSON.stringify(users[0]), { EX: 3600 }); // Cache for 5 minutes
       return {
         message: 'User fetched successfully',
         user: users[0]
@@ -127,6 +140,7 @@ const userService = {
         [profileImage, about, link, userId]
       );
 
+      await redisClient.del(`user:${userId}`); // Invalidate cached user data
       return { message: 'Profile updated successfully' };
     } finally {
       if (connection) connection.release();

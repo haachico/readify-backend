@@ -1,7 +1,8 @@
 const pool = require('../config/db');
+const redisClient = require('../config/redis');
 
-// Helper function to format posts with likes
-async function formatPostsWithLikes(posts, connection) {
+// Helper function to format posts with likes and bookmarks
+async function formatPostsWithLikesAndBookmarks(posts, connection) {
   return Promise.all(
     posts.map(async (post) => {
       const [likes] = await connection.query(
@@ -25,6 +26,35 @@ async function formatPostsWithLikes(posts, connection) {
         createdAt: post.createdAt,
         updatedAt: post.updatedAt,
         ...(post.isBookmarked !== undefined && { isBookmarked: post.isBookmarked === 1 })
+      };
+    })
+  );
+}
+
+// Helper function to format posts with likes (for caching - no bookmark info)
+async function formatPostsWithLikes(posts, connection) {
+  return Promise.all(
+    posts.map(async (post) => {
+      const [likes] = await connection.query(
+        `SELECT userId FROM likes WHERE postId = ?`,
+        [post.id]
+      );
+
+      return {
+        _id: post.id,
+        content: post.content,
+        imgContent: post.imageUrl,
+        username: post.username,
+        firstName: post.firstName,
+        lastName: post.lastName,
+        email: post.email,
+        image: post.profileImage,
+        likes: {
+          likeCount: post.likeCount,
+          likedBy: likes.map(like => like.userId)
+        },
+        createdAt: post.createdAt,
+        updatedAt: post.updatedAt
       };
     })
   );
@@ -57,6 +87,16 @@ const postService = {
   async getTrendingPosts() {
     let connection;
     try {
+      const cachedKey = 'trending:posts'
+
+      const cachedPosts = await redisClient.get(cachedKey);
+
+      if (cachedPosts) {
+        return {
+          message: 'Trending posts fetched successfully (from cache)',
+          posts: JSON.parse(cachedPosts)
+        };
+      }
       connection = await pool.getConnection();
 
       const [posts] = await connection.query(
@@ -68,6 +108,8 @@ const postService = {
 
       const postsWithLikes = await formatPostsWithLikes(posts, connection);
 
+      await redisClient.set(cachedKey, JSON.stringify(postsWithLikes), { EX: 600 });
+      console.log('✓ Cached trending posts for 10 minutes');
       return {
         message: 'Trending posts fetched successfully',
         posts: postsWithLikes
@@ -102,7 +144,7 @@ const postService = {
         [userId, userId, userId]
       );
 
-      const postsWithLikes = await formatPostsWithLikes(posts, connection);
+      const postsWithLikes = await formatPostsWithLikesAndBookmarks(posts, connection);
 
       return {
         message: 'Feed posts fetched successfully',
@@ -116,6 +158,16 @@ const postService = {
   async getBookmarkedPosts(userId) {
     let connection;
     try {
+      const cachedKey = `bookmarks:${userId}`;
+
+      const cachedPosts = await redisClient.get(cachedKey);
+
+      if (cachedPosts) {
+        return {
+          message: 'Bookmarked posts fetched successfully (from cache)',
+          posts: JSON.parse(cachedPosts)
+        };
+      }
       connection = await pool.getConnection();
 
       const [posts] = await connection.query(
@@ -129,6 +181,7 @@ const postService = {
 
       const postsWithLikes = await formatPostsWithLikes(posts, connection);
 
+      await redisClient.set(cachedKey, JSON.stringify(postsWithLikes), { EX: 600 });
       return {
         message: 'Bookmarked posts fetched successfully',
         posts: postsWithLikes
@@ -147,6 +200,16 @@ const postService = {
         `INSERT INTO posts (content, imageUrl, userId, likeCount, createdAt, updatedAt) VALUES (?, ?, ?, 0, NOW(), NOW())`,
         [content, imgContent, userId]
       );
+
+      // Invalidate all feed caches for this user
+      await redisClient.del(`feed:${userId}:latest`);
+      await redisClient.del(`feed:${userId}:oldest`);
+      await redisClient.del(`feed:${userId}:trending`);
+      
+      // Invalidate trending posts (new post affects ranking)
+      await redisClient.del('trending:posts');
+      
+      console.log('✓ Cache invalidated for user:', userId);
 
       const [posts] = await connection.query(
         `SELECT p.id, p.content, p.imageUrl, p.userId, p.likeCount, p.createdAt, p.updatedAt, u.username, u.firstName, u.lastName, u.email, u.profileImage
@@ -208,6 +271,7 @@ const postService = {
         [userId, postId]
       );
 
+      await redisClient.del(`bookmarks:${userId}`); 
       return { message: 'Post bookmarked successfully' };
     } finally {
       if (connection) connection.release();
@@ -224,6 +288,7 @@ const postService = {
         [userId, postId]
       );
 
+      await redisClient.del(`bookmarks:${userId}`);
       return { message: 'Bookmark removed successfully' };
     } finally {
       if (connection) connection.release();
@@ -288,6 +353,10 @@ const postService = {
           [postId]
         );
       }
+
+      // Invalidate trending posts cache (likes affect ranking)
+      await redisClient.del('trending:posts');
+      console.log('✓ Trending cache invalidated');
 
       return { message: 'Like/Dislike handled successfully' };
     } finally {

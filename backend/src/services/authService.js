@@ -119,6 +119,25 @@ const authService = {
     } finally {
       if (connection) connection.release();
     }
+  },
+
+  async logout(token) {
+    const redisClient = require('../config/redis');
+    
+    try {
+      const cleanToken = token.startsWith('Bearer ') ? token.slice(7) : token;
+      
+      // Add token to blacklist for 7 days (604800 seconds = 7 * 24 * 60 * 60)
+      await redisClient.set(`blacklist:${cleanToken}`, '1', { EX: 604800 });
+      
+      console.log('✓ Token added to blacklist');
+      return { message: 'Logged out successfully' };
+    } catch (error) {
+      throw {
+        status: 500,
+        message: 'Error during logout'
+      };
+    }
   }
 };
 
