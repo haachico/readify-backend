@@ -3,10 +3,10 @@ const express = require('express');
 const router = express.Router();
 const { signup, login, logout } = require('../controllers/authController');
 const authMiddleware = require('../middleware/authMiddleware');
-const rateLimitMiddleware = require('../middleware/rateMiddleware');
+const { ipRateLimitMiddleware } = require('../middleware/rateMiddleware');
 
-router.post('/signup', rateLimitMiddleware, signup)
-router.post('/login', rateLimitMiddleware, login)
+router.post('/signup', ipRateLimitMiddleware, signup)
+router.post('/login', ipRateLimitMiddleware, login)
 router.post('/logout', authMiddleware, logout)
 
 

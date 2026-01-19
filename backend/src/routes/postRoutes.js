@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const {getAllPosts, getTrendingPosts, getBookmarkedPosts, createPost, editPost, bookmarkPost, removeBookmark, getFeedPosts, deletePost, handleLikeDislike} = require('../controllers/postController');
 const authMiddleware = require('../middleware/authMiddleware');
-const rateLimitMiddleware = require('../middleware/rateMiddleware');
+const { rateLimitMiddleware } = require('../middleware/rateMiddleware');
 
 router.get('/', getAllPosts);
 router.get('/feed', authMiddleware, getFeedPosts);
