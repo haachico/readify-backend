@@ -3,9 +3,9 @@ const redisClient = require('../config/redis');
 
 const authMiddleware = async (req, res, next) => {
     // Skip authentication for OPTIONS preflight requests
-    if (req.method === 'OPTIONS') {
-        return next();
-    }
+    // if (req.method === 'OPTIONS') {
+    //     return next();
+    // }
 
     try {
         const token = req.headers.authorization;
