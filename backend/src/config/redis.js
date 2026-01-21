@@ -1,7 +1,7 @@
 const { createClient } = require('redis');
 require('dotenv').config();
 
-let redisClient;
+let redisClient = null;
 let redisConnected = false;
 
 // Dummy client that returns null/0 for all operations
@@ -13,61 +13,44 @@ const dummyClient = {
   expire: async () => null,
 };
 
-// Only try to connect to Redis if REDIS_URL is set
-if (process.env.REDIS_URL) {
-  redisClient = createClient({
-    url: process.env.REDIS_URL,
-    socket: {
-      tls: true,
-      rejectUnauthorized: false,
-      connectTimeout: 2000,  // Give up on connection after 2 seconds
-      commandTimeout: 2000   // Give up on commands after 2 seconds
-    },
-  });
+// Only try to connect to Redis if REDIS_URL is set and not localhost
+async function initRedis() {
+  if (!process.env.REDIS_URL || process.env.REDIS_URL.includes('localhost')) {
+    redisClient = dummyClient;
+    console.log('ℹ️  Redis not configured or localhost, using dummy client');
+    return;
+  }
 
-  redisClient.on('error', (err) => {
-    // Silently mark as disconnected - errors are expected when Redis is unavailable
-    // The app gracefully falls back to the database
+  try {
+    const client = createClient({
+      url: process.env.REDIS_URL,
+      socket: {
+        tls: true,
+        rejectUnauthorized: false,
+        connectTimeout: 1000  // Only wait 1 second
+      },
+    });
+
+    // Set up a timeout for the connect attempt
+    const connectPromise = client.connect();
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Redis connection timeout')), 1500)
+    );
+
+    await Promise.race([connectPromise, timeoutPromise]);
+    
+    redisClient = client;
+    redisConnected = true;
+    console.log('✓ Redis connected');
+  } catch (err) {
+    console.log('⚠️  Redis unavailable, using database for all operations');
+    redisClient = dummyClient;
     redisConnected = false;
-  });
-
-  (async () => {
-    try {
-      await redisClient.connect();
-      redisConnected = true;
-      console.log('✓ Redis connected');
-      
-      // Wrap Redis client methods with a 2-second timeout
-      const original = redisClient;
-      const timeout = 2000;
-      
-      ['get', 'set', 'del', 'incr', 'expire'].forEach(method => {
-        const originalMethod = original[method].bind(original);
-        original[method] = async function(...args) {
-          return Promise.race([
-            originalMethod(...args),
-            new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Redis command timeout')), timeout)
-            )
-          ]).catch(err => {
-            redisConnected = false;
-            console.warn(`⚠️  Redis command timeout, using database instead`);
-            return null;
-          });
-        };
-      });
-    } catch (err) {
-      console.warn('⚠️  Redis connection failed (app will work without caching):', err.message);
-      redisConnected = false;
-      // Fall back to dummy client
-      redisClient = dummyClient;
-    }
-  })();
-} else {
-  // No REDIS_URL configured, use dummy client
-  redisClient = dummyClient;
-  console.log('ℹ️  Redis not configured (using dummy client)');
+  }
 }
+
+// Initialize Redis immediately
+initRedis();
 
 module.exports = redisClient;
 module.exports.isConnected = () => redisConnected;
