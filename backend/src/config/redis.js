@@ -41,6 +41,10 @@ async function initRedis() {
     
     redisClient = client;
     redisConnected = true;
+    
+    // Update the exported module to use real client
+    Object.assign(module.exports, client);
+    
     console.log('✓ Redis connected');
   } catch (err) {
     console.log('⚠️  Redis unavailable, using database for all operations');
@@ -49,8 +53,9 @@ async function initRedis() {
   }
 }
 
-// Initialize Redis immediately
+// Initialize Redis immediately (async, doesn't block)
 initRedis();
 
-module.exports = redisClient;
+// Export dummy client immediately - will be upgraded to real client if connection succeeds
+module.exports = dummyClient;
 module.exports.isConnected = () => redisConnected;
