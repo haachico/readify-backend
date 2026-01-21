@@ -10,7 +10,7 @@ const rateLimitMiddleware = async (req, res, next) => {
         }
 
         // Skip rate limiting if Redis is not available
-        if (!redisClient.isConnected || !redisClient.isConnected()) {
+        if (typeof redisClient.isConnected === 'function' && !redisClient.isConnected()) {
             return next();
         }
 
@@ -40,7 +40,7 @@ const rateLimitMiddleware = async (req, res, next) => {
 const ipRateLimitMiddleware = async (req, res, next) => {
     try {
         // Skip rate limiting if Redis is not available
-        if (!redisClient.isConnected || !redisClient.isConnected()) {
+        if (typeof redisClient.isConnected === 'function' && !redisClient.isConnected()) {
             return next();
         }
 
