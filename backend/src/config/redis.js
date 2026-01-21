@@ -1,34 +1,51 @@
 const { createClient } = require('redis');
 require('dotenv').config();
 
-const redisClient = createClient({
-  url: process.env.REDIS_URL,
-  socket: {
-    // Force TLS if we are in production (Render)
-    tls: true, 
-    // This is the key fix for "packet length" on many cloud providers
-    rejectUnauthorized: false, 
-    // Add a timeout so it doesn't hang your API forever
-    connectTimeout: 10000 
-  },
-});
+let redisClient;
 let redisConnected = false;
 
-redisClient.on('error', (err) => {
-  console.warn('⚠️  Redis Connection Warning (continuing without Redis):', err.message);
-  redisConnected = false;
-});
+// Dummy client that returns null/0 for all operations
+const dummyClient = {
+  get: async () => null,
+  set: async () => null,
+  del: async () => null,
+  incr: async () => 0,
+  expire: async () => null,
+};
 
-(async () => {
-  try {
-    await redisClient.connect();
-    redisConnected = true;
-    console.log('✓ Redis Connected');
-  } catch (err) {
-    console.warn('⚠️  Redis not available (app will work without caching):', err.message);
+// Only try to connect to Redis if REDIS_URL is set
+if (process.env.REDIS_URL) {
+  redisClient = createClient({
+    url: process.env.REDIS_URL,
+    socket: {
+      tls: true,
+      rejectUnauthorized: false,
+      connectTimeout: 2000  // Give up after 2 seconds
+    },
+  });
+
+  redisClient.on('error', (err) => {
+    console.warn('⚠️  Redis unavailable (continuing without caching):', err.message);
     redisConnected = false;
-  }
-})();
+  });
+
+  (async () => {
+    try {
+      await redisClient.connect();
+      redisConnected = true;
+      console.log('✓ Redis connected');
+    } catch (err) {
+      console.warn('⚠️  Redis connection failed (app will work without caching):', err.message);
+      redisConnected = false;
+      // Fall back to dummy client
+      redisClient = dummyClient;
+    }
+  })();
+} else {
+  // No REDIS_URL configured, use dummy client
+  redisClient = dummyClient;
+  console.log('ℹ️  Redis not configured (using dummy client)');
+}
 
 module.exports = redisClient;
 module.exports.isConnected = () => redisConnected;
