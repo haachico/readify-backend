@@ -32,6 +32,11 @@ app.use('/api/auth', authRoutes);
 const postRoutes = require('./src/routes/postRoutes');
 app.use('/api/posts', postRoutes);
 
+
+const commentRoutes = require('./src/routes/commentRoutes');
+app.use('/api', commentRoutes);
+
+
 const userRoutes = require('./src/routes/userRoutes');
 app.use('/api/users', userRoutes);
 
