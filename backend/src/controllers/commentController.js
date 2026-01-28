@@ -1,3 +1,4 @@
+const { get } = require('../config/redis');
 const commentService = require('../services/commentService');
 
 
@@ -23,7 +24,19 @@ const commentController = {
     console.error('Error adding comment:', error);
     res.status(500).json({ message: 'Server error adding comment', error: error.message });
   }
-}
+},
+
+ getCommnentsByPostId: async (req, res) => {
+    try {
+         const { postId } = req.params;
+         const comments = await commentService.getCommnentsByPostId(postId);
+         res.status(200).json(comments);
+    }
+    catch(error){
+       res.status(500).json({ message: 'Server error fetching comments', error: error.message }); 
+    }
+ } 
+
 }
 
 module.exports = commentController;
