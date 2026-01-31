@@ -78,9 +78,11 @@ async function addComment({ postId, userId, content, parentCommentId = null }) {
   return comments[0];
 }
 
-async function addReply ({postId, userId, content, parentCommentId}) {
+async function addReply ({postId, userId, content, commentId}) {
  
   let connection = await pool.getConnection()
+
+  console.log("Adding reply with:", {postId, userId, content, commentId});
   try {
 
       const [postCheck] = await connection.query(
@@ -103,7 +105,7 @@ async function addReply ({postId, userId, content, parentCommentId}) {
 
     const [parentCheck] = await connection.query(
       'SELECT id, postId FROM comments WHERE id = ?',
-      [parentCommentId] 
+      [commentId] 
     );
 
     if (parentCheck.length === 0) {
@@ -116,7 +118,7 @@ async function addReply ({postId, userId, content, parentCommentId}) {
     const [result] = await connection.query(
       `INSERT INTO comments (postId, userId, content, parentCommentId) 
        VALUES (?, ?, ?, ?)`,
-      [postId, userId, content, parentCommentId]
+      [postId, userId, content, commentId]
     );
 
     return result;

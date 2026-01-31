@@ -57,7 +57,34 @@ const userController = {
       console.error('Update profile error:', error);
       res.status(500).json({ message: 'Server error updating profile', error: error.message });
     }
+  },
+
+  getFollowersList : async (req, res) => {
+    try {
+
+      const { userId } = req.params;
+      const result = await userService.getFollowers(userId);
+      res.status(200).json(result);
+    }
+    catch(error){
+      console.error('Get followers list error:', error);
+      res.status(500).json({ message: 'Server error fetching followers list', error: error.message });
+    }
+  },
+
+  getFollowingsList : async (req, res) => {
+    try {
+
+      const { userId } = req.params;
+      const result = await userService.getFollowings(userId);
+      res.status(200).json(result);
+
+    }
+    catch(error){
+      console.error('Get followings list error:', error);
+      res.status(500).json({ message: 'Server error fetching followings list', error: error.message });
   }
+}
 };
 
 module.exports = userController;

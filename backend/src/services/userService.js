@@ -145,6 +145,74 @@ const userService = {
     } finally {
       if (connection) connection.release();
     }
+  },
+
+    
+  async getFollowers(userId) {
+    let connection;
+    try {
+      connection = await pool.getConnection();
+
+      const [userRows] = await connection.query(
+        `SELECT * FROM users WHERE id = ?`,
+        [userId]
+      );
+
+      if (userRows.length === 0) {
+        throw {
+          status: 404,
+          message: 'User not found'
+        };
+      }
+      
+      const [followedUsers] = await connection.query(
+        `SELECT u.* from users as u
+        Join follows as f
+        on f.followerId = u.id
+        WHERE f.followingId = ?
+        `, [userId]
+      )
+
+      return followedUsers
+    }
+
+    finally {
+      if (connection) connection.release();
+    }
+  },
+
+
+  async getFollowings(userId) {
+    let connection;
+      try {
+
+        connection = await pool.getConnection();
+
+        const [userRows] = await connection.query(
+          `SELECT * FROM users WHERE id = ?`,
+          [userId]
+        );
+
+        if (userRows.length === 0) {
+          throw {
+            status: 404,
+            message: 'User not found'
+          };
+        }
+        
+        const [followingUsers] = await connection.query(
+          `Select u.* from users as u
+          Join follows as f
+          on f.followingId = u.id
+          WHERE f.followerId = ?
+          `, [userId]
+        )
+        return followingUsers
+
+      }
+      finally{
+        if (connection) connection.release();
+      }
   }
 };
 

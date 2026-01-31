@@ -40,7 +40,7 @@ addAReply : async (req, res) => {
       return res.status(400).json({ message: 'Content and commentId are required' });
     }
     
-    const reply = await addReply({postId, commentId, userId, content});
+    const reply = await addReply({postId, userId, content, commentId});
 
     res.status(201).json({ message: 'Reply added', reply });
   }
