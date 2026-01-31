@@ -144,21 +144,24 @@ async function getCommnentsByPostId(postId) {
             throw new Error('Post not found');
         }
         const [rows] = await connection.query(
-            `SELECT * FROM comments WHERE postId = ?`,
+            `SELECT c.*, u.username, u.profileImage
+            FROM comments as c
+            LEFT JOIN users as u ON c.userId = u.id
+            WHERE postId = ?`,
             [postId]
         );
 
-       const rowsWithUsernames = await Promise.all(rows.map( async (comment)=> {
-        const [userRow] = await connection.query(
-            `SELECT username, profileImage FROM users WHERE id = ?`,
-            [comment.userId]
-        )
-        return {
-          ...comment, 
-          username: userRow[0].username,
-          profileImage: userRow[0].profileImage
-        }
-       }))
+      //  const rowsWithUsernames = await Promise.all(rows.map( async (comment)=> {
+      //   const [userRow] = await connection.query(
+      //       `SELECT username, profileImage FROM users WHERE id = ?`,
+      //       [comment.userId]
+      //   )
+      //   return {
+      //     ...comment, 
+      //     username: userRow[0].username,
+      //     profileImage: userRow[0].profileImage
+      //   }
+      //  }))
     
         return buildCommentTree(rowsWithUsernames);
     }

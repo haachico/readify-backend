@@ -2,63 +2,63 @@ const pool = require('../config/db');
 const redisClient = require('../config/redis');
 
 // Helper function to format posts with likes and bookmarks
-async function formatPostsWithLikesAndBookmarks(posts, connection) {
-  return Promise.all(
-    posts.map(async (post) => {
-      const [likes] = await connection.query(
-        `SELECT userId FROM likes WHERE postId = ?`,
-        [post.id]
-      );
+// async function formatPostsWithLikesAndBookmarks(posts, connection) {
+//   return Promise.all(
+//     posts.map(async (post) => {
+//       const [likes] = await connection.query(
+//         `SELECT userId FROM likes WHERE postId = ?`,
+//         [post.id]
+//       );
 
-      return {
-        _id: post.id,
-        content: post.content,
-        imgContent: post.imageUrl,
-        username: post.username,
-        firstName: post.firstName,
-        lastName: post.lastName,
-        email: post.email,
-        image: post.profileImage,
-        likes: {
-          likeCount: post.likeCount,
-          likedBy: likes.map(like => like.userId)
-        },
-        createdAt: post.createdAt,
-        updatedAt: post.updatedAt,
-        ...(post.isBookmarked !== undefined && { isBookmarked: post.isBookmarked === 1 })
-      };
-    })
-  );
-}
+//       return {
+//         _id: post.id,
+//         content: post.content,
+//         imgContent: post.imageUrl,
+//         username: post.username,
+//         firstName: post.firstName,
+//         lastName: post.lastName,
+//         email: post.email,
+//         image: post.profileImage,
+//         likes: {
+//           likeCount: post.likeCount,
+//           likedBy: likes.map(like => like.userId)
+//         },
+//         createdAt: post.createdAt,
+//         updatedAt: post.updatedAt,
+//         ...(post.isBookmarked !== undefined && { isBookmarked: post.isBookmarked === 1 })
+//       };
+//     })
+//   );
+// }
 
 // Helper function to format posts with likes (for caching - no bookmark info)
-async function formatPostsWithLikes(posts, connection) {
-  return Promise.all(
-    posts.map(async (post) => {
-      const [likes] = await connection.query(
-        `SELECT userId FROM likes WHERE postId = ?`,
-        [post.id]
-      );
+// async function formatPostsWithLikes(posts, connection) {
+//   return Promise.all(
+//     posts.map(async (post) => {
+//       const [likes] = await connection.query(
+//         `SELECT userId FROM likes WHERE postId = ?`,
+//         [post.id]
+//       );
 
-      return {
-        _id: post.id,
-        content: post.content,
-        imgContent: post.imageUrl,
-        username: post.username,
-        firstName: post.firstName,
-        lastName: post.lastName,
-        email: post.email,
-        image: post.profileImage,
-        likes: {
-          likeCount: post.likeCount,
-          likedBy: likes.map(like => like.userId)
-        },
-        createdAt: post.createdAt,
-        updatedAt: post.updatedAt
-      };
-    })
-  );
-}
+//       return {
+//         _id: post.id,
+//         content: post.content,
+//         imgContent: post.imageUrl,
+//         username: post.username,
+//         firstName: post.firstName,
+//         lastName: post.lastName,
+//         email: post.email,
+//         image: post.profileImage,
+//         likes: {
+//           likeCount: post.likeCount,
+//           likedBy: likes.map(like => like.userId)
+//         },
+//         createdAt: post.createdAt,
+//         updatedAt: post.updatedAt
+//       };
+//     })
+//   );
+// }
 
 const postService = {
   async getAllPosts() {
@@ -67,13 +67,31 @@ const postService = {
       connection = await pool.getConnection();
 
       const [posts] = await connection.query(
-        `SELECT p.id, p.content, p.imageUrl, p.userId, p.likeCount, p.createdAt, p.updatedAt, u.username, u.firstName, u.lastName, u.email, u.profileImage
+        `SELECT p.id, p.content, p.imageUrl, p.userId, p.likeCount, p.createdAt, p.updatedAt, u.username, u.firstName, u.lastName, u.email, u.profileImage,
+        GROUP_CONCAT(l.userId) AS likedBy
         FROM posts as p
         LEFT JOIN users as u ON p.userId = u.id
+        LEFT JOIN likes as l ON l.postId = p.id
+        GROUP BY p.id
         ORDER BY p.createdAt DESC`
       );
 
-      const postsWithLikes = await formatPostsWithLikes(posts, connection);
+      const postsWithLikes = posts.map(post => ({
+        _id: post.id,
+        content: post.content,
+        imgContent: post.imageUrl,
+        username: post.username,
+        firstName: post.firstName,
+        lastName: post.lastName,
+        email: post.email,
+        image: post.profileImage,
+        likes: {
+          likeCount: post.likeCount,
+          likedBy: post.likedBy ? post.likedBy.split(',').map(Number) : []
+        },
+        createdAt: post.createdAt,
+        updatedAt: post.updatedAt
+      }));
 
       return {
         message: 'Posts fetched successfully',
@@ -100,13 +118,31 @@ const postService = {
       connection = await pool.getConnection();
 
       const [posts] = await connection.query(
-        `SELECT p.id, p.content, p.imageUrl, p.userId, p.likeCount, p.createdAt, p.updatedAt, u.username, u.firstName, u.lastName, u.email, u.profileImage
+        `SELECT p.id, p.content, p.imageUrl, p.userId, p.likeCount, p.createdAt, p.updatedAt, u.username, u.firstName, u.lastName, u.email, u.profileImage,
+        GROUP_CONCAT(l.userId) AS likedBy
         FROM posts as p
         LEFT JOIN users as u ON p.userId = u.id
+        LEFT JOIN likes as l ON l.postId = p.id
+        GROUP BY p.id
         ORDER BY p.likeCount DESC, p.createdAt DESC`
       );
 
-      const postsWithLikes = await formatPostsWithLikes(posts, connection);
+      const postsWithLikes = posts.map(post => ({
+        _id: post.id,
+        content: post.content,
+        imgContent: post.imageUrl,
+        username: post.username,
+        firstName: post.firstName,
+        lastName: post.lastName,
+        email: post.email,
+        image: post.profileImage,
+        likes: {
+          likeCount: post.likeCount,
+          likedBy: post.likedBy ? post.likedBy.split(',').map(Number) : []
+        },
+        createdAt: post.createdAt,
+        updatedAt: post.updatedAt
+      }));
 
       await redisClient.set(cachedKey, JSON.stringify(postsWithLikes), { EX: 600 });
       console.log('✓ Cached trending posts for 10 minutes');
@@ -133,18 +169,38 @@ const postService = {
       }
 
       const [posts] = await connection.query(
-        `SELECT p.id, p.content, p.imageUrl, p.userId, p.likeCount, p.createdAt, p.updatedAt, u.username, u.firstName, u.lastName, u.email, u.profileImage, case when b.id is not null then 1 else 0 end as isBookmarked
+        `SELECT p.id, p.content, p.imageUrl, p.userId, p.likeCount, p.createdAt, p.updatedAt, u.username, u.firstName, u.lastName, u.email, u.profileImage, 
+        case when b.id is not null then 1 else 0 end as isBookmarked,
+        GROUP_CONCAT(l.userId) AS likedBy
         FROM posts p
         LEFT JOIN users u ON p.userId = u.id
         LEFT JOIN bookmarks b ON p.id = b.postId AND b.userId = ?
+        LEFT JOIN likes as l ON l.postId = p.id
         WHERE p.userId = ? OR p.userId IN (
             SELECT followingId FROM follows WHERE followerId = ?
         )
+        GROUP BY p.id
         ORDER BY ${orderBy}`,
         [userId, userId, userId]
       );
 
-      const postsWithLikes = await formatPostsWithLikesAndBookmarks(posts, connection);
+      const postsWithLikes = posts.map(post => ({
+        _id: post.id,
+        content: post.content,
+        imgContent: post.imageUrl,
+        username: post.username,
+        firstName: post.firstName,
+        lastName: post.lastName,
+        email: post.email,
+        image: post.profileImage,
+        likes: {
+          likeCount: post.likeCount,
+          likedBy: post.likedBy ? post.likedBy.split(',').map(Number) : []
+        },
+        createdAt: post.createdAt,
+        updatedAt: post.updatedAt,
+        isBookmarked: post.isBookmarked === 1
+      }));
 
       return {
         message: 'Feed posts fetched successfully',
@@ -171,15 +227,34 @@ const postService = {
       connection = await pool.getConnection();
 
       const [posts] = await connection.query(
-        `SELECT p.id, p.content, p.imageUrl, p.userId, p.likeCount, p.createdAt, p.updatedAt, u.username, u.firstName, u.lastName, u.email, u.profileImage
+        `SELECT p.id, p.content, p.imageUrl, p.userId, p.likeCount, p.createdAt, p.updatedAt, u.username, u.firstName, u.lastName, u.email, u.profileImage,
+        GROUP_CONCAT(l.userId) AS likedBy
         FROM posts p
         INNER JOIN bookmarks b ON p.id = b.postId AND b.userId = ?
         LEFT JOIN users u ON p.userId = u.id
+        LEFT JOIN likes as l ON l.postId = p.id
+        WHERE b.userId = ?
+        GROUP BY p.id
         ORDER BY b.createdAt DESC`,
-        [userId]
+        [userId, userId]
       );
 
-      const postsWithLikes = await formatPostsWithLikes(posts, connection);
+      const postsWithLikes = posts.map(post => ({
+        _id: post.id,
+        content: post.content,
+        imgContent: post.imageUrl,
+        username: post.username,
+        firstName: post.firstName,
+        lastName: post.lastName,
+        email: post.email,
+        image: post.profileImage,
+        likes: {
+          likeCount: post.likeCount,
+          likedBy: post.likedBy ? post.likedBy.split(',').map(Number) : []
+        },
+        createdAt: post.createdAt,
+        updatedAt: post.updatedAt
+      }));
 
       await redisClient.set(cachedKey, JSON.stringify(postsWithLikes), { EX: 600 });
       return {
@@ -212,16 +287,34 @@ const postService = {
       console.log('✓ Cache invalidated for user:', userId);
 
       const [posts] = await connection.query(
-        `SELECT p.id, p.content, p.imageUrl, p.userId, p.likeCount, p.createdAt, p.updatedAt, u.username, u.firstName, u.lastName, u.email, u.profileImage
+        `SELECT p.id, p.content, p.imageUrl, p.userId, p.likeCount, p.createdAt, p.updatedAt, u.username, u.firstName, u.lastName, u.email, u.profileImage,
+        GROUP_CONCAT(l.userId) AS likedBy
         FROM posts as p
         LEFT JOIN users as u ON p.userId = u.id
+        LEFT JOIN likes as l ON l.postId = p.id
         Where p.userId = ?
+        GROUP BY p.id
         ORDER BY p.createdAt DESC
         LIMIT 1`,
         [userId]
       );
 
-      const postsWithLikes = await formatPostsWithLikes(posts, connection);
+      const postsWithLikes = posts.map(post => ({
+        _id: post.id,
+        content: post.content,
+        imgContent: post.imageUrl,
+        username: post.username,
+        firstName: post.firstName,
+        lastName: post.lastName,
+        email: post.email,
+        image: post.profileImage,
+        likes: {
+          likeCount: post.likeCount,
+          likedBy: post.likedBy ? post.likedBy.split(',').map(Number) : []
+        },
+        createdAt: post.createdAt,
+        updatedAt: post.updatedAt
+      }));
 
       return {
         message: 'Post created successfully',
