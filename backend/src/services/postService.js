@@ -445,6 +445,42 @@ const postService = {
           `UPDATE posts SET likeCount = likeCount + 1 WHERE id = ?`,
           [postId]
         );
+
+           // Get post owner
+      const [post] = await connection.query(
+        `SELECT userId FROM posts WHERE id = ?`,
+        [postId]
+      );
+
+      // Only create notification if liking someone else's post
+      if (post[0].userId !== userId) {
+        const [liker] = await connection.query(
+          `SELECT username FROM users WHERE id = ?`,
+          [userId]
+        );
+
+        // ✅ IMPROVEMENT: Check if notification already exists
+        const [existingNotification] = await connection.query(
+          `SELECT id FROM notifications 
+           WHERE userId = ? AND type = 'like' 
+           AND sourceUserId = ? AND postId = ? 
+           AND DATE(createdAt) = CURDATE()`,
+          [post[0].userId, userId, postId]
+        );
+
+        // ✅ Only insert if no recent duplicate
+        if (existingNotification.length === 0) {
+          const message = `${liker[0].username} liked your post.`;
+          
+          await connection.query(
+            `INSERT INTO notifications 
+             (userId, type, sourceUserId, postId, commentId, message, isRead, createdAt) 
+             VALUES (?, 'like', ?, ?, NULL, ?, 0, NOW())`,
+            [post[0].userId, userId, postId, message]
+          );
+        }
+      }
+
       }
 
       // Invalidate trending posts cache (likes affect ranking)
