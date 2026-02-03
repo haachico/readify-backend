@@ -163,7 +163,7 @@ async function getCommnentsByPostId(postId) {
       //   }
       //  }))
     
-        return buildCommentTree(rowsWithUsernames);
+        return buildCommentTree(rows);
     }
     finally {
         connection.release();

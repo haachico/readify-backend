@@ -45,6 +45,9 @@ app.get('/', (req, res) => {
   res.json({ message: 'Server is running!' });
 });
 
+const notificationRoutes = require('./src/routes/notificationRoutes');
+app.use('/api/notifications', notificationRoutes);
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
