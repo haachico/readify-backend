@@ -11,6 +11,21 @@ const postController = {
     }
   },
 
+  getPostDetailsById : async (req, res) => {
+
+    try {
+
+      const { postId } = req.params;
+      const result = await postService.getPostById(postId);
+      
+      res.status(200).json(result);
+
+    }
+    catch(error){
+        res.status(500).json({ message: 'Server error fetching post details', error: error.message });
+    }
+  },
+
   getTrendingPosts: async (req, res) => {
     try {
       const result = await postService.getTrendingPosts();

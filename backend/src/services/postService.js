@@ -101,6 +101,57 @@ const postService = {
       if (connection) connection.release();
     }
   },
+  
+   async getPostById(postId) {
+
+    let connection;
+    try {
+    connection = await pool.getConnection();
+
+    const [posts] = await connection.query(
+        `SELECT p.id, p.content, p.imageUrl, p.userId, p.likeCount, p.createdAt, p.updatedAt, u.username, u.firstName, u.lastName, u.email, u.profileImage,
+        GROUP_CONCAT(l.userId) AS likedBy
+        FROM posts as p
+        LEFT JOIN users as u ON p.userId = u.id
+        LEFT JOIN likes as l ON l.postId = p.id
+        WHERE p.id = ?
+        GROUP BY p.id`,
+        [postId]
+      );
+
+      if(posts.length ===0){
+        throw {
+          status: 404,
+          message: 'Post not found'
+        }
+      }
+
+      const postsWithLikes = posts.map(post => ({
+        _id: post.id,
+        content: post.content,
+        imgContent: post.imageUrl,
+        username: post.username,
+        firstName: post.firstName,
+        lastName: post.lastName,
+        email: post.email,
+        image: post.profileImage,
+        likes: {
+          likeCount: post.likeCount,
+          likedBy: post.likedBy ? post.likedBy.split(',').map(Number) : []
+        },
+        createdAt: post.createdAt,
+        updatedAt: post.updatedAt
+      }));
+      return {
+        message: 'Post fetched successfully',
+        post: postsWithLikes[0]
+      };
+    }
+    
+    finally {
+      if (connection) connection.release();
+    }
+   },
 
   async getTrendingPosts() {
     let connection;
@@ -169,13 +220,14 @@ const postService = {
       }
 
       const [posts] = await connection.query(
-        `SELECT p.id, p.content, p.imageUrl, p.userId, p.likeCount, p.createdAt, p.updatedAt, u.username, u.firstName, u.lastName, u.email, u.profileImage, 
+        `SELECT p.id, p.content, p.imageUrl, p.userId, p.likeCount, p.createdAt, p.updatedAt, u.username, u.firstName, u.lastName, u.email, u.profileImage, count(c.id) as commentCount,
         case when b.id is not null then 1 else 0 end as isBookmarked,
         GROUP_CONCAT(l.userId) AS likedBy
         FROM posts p
         LEFT JOIN users u ON p.userId = u.id
         LEFT JOIN bookmarks b ON p.id = b.postId AND b.userId = ?
         LEFT JOIN likes as l ON l.postId = p.id
+        LEFT JOIN comments as c ON c.postId = p.id
         WHERE p.userId = ? OR p.userId IN (
             SELECT followingId FROM follows WHERE followerId = ?
         )
@@ -197,6 +249,7 @@ const postService = {
           likeCount: post.likeCount,
           likedBy: post.likedBy ? post.likedBy.split(',').map(Number) : []
         },
+        commentCount: post.commentCount,
         createdAt: post.createdAt,
         updatedAt: post.updatedAt,
         isBookmarked: post.isBookmarked === 1
