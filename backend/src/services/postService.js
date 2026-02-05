@@ -417,6 +417,25 @@ const postService = {
         [userId, postId]
       );
 
+      const [post] = await connection.query(
+        `SELECT userId FROM posts WHERE id = ?`,
+        [postId]
+      );
+
+      if(post[0].userId !== userId){
+        const [bookmarker] = await connection.query(
+          `SELECT username FROM users WHERE id = ?`,
+          [userId]
+        );
+
+        const message = `${bookmarker[0].username} bookmarked your post.`;
+
+        await connection.query(
+          `INSERT INTO notifications (userId, type, sourceUserId, postId, commentId, message, isRead, createdAt) VALUES (?, ?, ?, ?, NULL, ?, 0, NOW())`,
+          [post[0].userId, 'bookmark', userId, postId, message]
+        );    
+      }
+
       await redisClient.del(`bookmarks:${userId}`); 
       return { message: 'Post bookmarked successfully' };
     } finally {

@@ -106,7 +106,7 @@ async function addReply ({postId, userId, content, commentId}) {
   try {
 
       const [postCheck] = await connection.query(
-      'SELECT id FROM posts WHERE id = ?',
+      'SELECT * FROM posts WHERE id = ?',
       [postId]
     );
 
@@ -140,6 +140,21 @@ async function addReply ({postId, userId, content, commentId}) {
        VALUES (?, ?, ?, ?)`,
       [postId, userId, content, commentId]
     );
+
+
+    if(postCheck[0].userId !== userId) {
+      const [replier] = await connection.query(
+        `SELECT username FROM users WHERE id = ?`,
+        [userId]
+      );
+
+      const message = `${replier[0].username} replied to your comment.`;
+
+        await connection.query(
+        `INSERT INTO notifications (userId, type, sourceUserId, postId, commentId, message, isRead, createdAt) VALUES (?, ?, ?, ?, ?, ?, 0, NOW())`,
+        [postCheck[0].userId, 'comment', userId, postId, result.insertId, message]
+      );
+    }
 
     return result;
   }
