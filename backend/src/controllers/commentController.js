@@ -5,7 +5,7 @@ const {addComment, getCommnentsByPostId, deleteComment, addReply} = require('../
 
 
 const commentController = {
-  
+
  addComment: async (req, res) => {
   try {
     const { postId } = req.params;

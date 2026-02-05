@@ -32,7 +32,7 @@ const buildCommentTree  = (comments)=> {
 async function addComment({ postId, userId, content, parentCommentId = null }) {
 
     const [postCheck] = await pool.query(
-    'SELECT id FROM posts WHERE id = ?',
+    'SELECT * FROM posts WHERE id = ?',
     [postId]
   );
   if (postCheck.length === 0) {
@@ -61,6 +61,7 @@ async function addComment({ postId, userId, content, parentCommentId = null }) {
     }
   }
 
+
   const [result] = await pool.query(
     `INSERT INTO comments (postId, userId, content, parentCommentId) 
      VALUES (?, ?, ?, ?)`,
@@ -74,6 +75,25 @@ async function addComment({ postId, userId, content, parentCommentId = null }) {
      WHERE c.id = ?`,
     [result.insertId]
   );
+
+
+
+  if(postCheck[0].userId !== userId) {
+    console.log("Creating notification for comment...");
+
+    const [commenter] = await pool.query(
+      `SELECT username FROM users WHERE id = ?`,
+      [userId]
+    );
+
+    const message = `${commenter[0].username} commented on your post.`;
+
+      await pool.query(
+      `INSERT INTO notifications (userId, type, sourceUserId, postId, commentId, message, isRead, createdAt) VALUES (?, ?, ?, ?, ?, ?, 0, NOW())`,
+      [postCheck[0].userId, 'comment', userId, postId, result.insertId, message]
+);
+  }
+  
 
   return comments[0];
 }
