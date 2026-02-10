@@ -4,56 +4,56 @@ const pool = require('../config/db');
 
 const authService = {
   async signup(username, email, password, firstName, lastName) {
-    // Validate inputs
     if (!username || !email || !password) {
-      throw {
-        status: 400,
-        message: 'All fields are required'
-      };
+      throw { status: 400, message: 'All fields are required' };
     }
 
     let connection;
     try {
       connection = await pool.getConnection();
 
-      // Check if user already exists
       const [existingUser] = await connection.query(
-        'SELECT id FROM users WHERE email = ? or username = ?',
+        'SELECT id FROM users WHERE email = ? OR username = ?',
         [email, username]
       );
 
       if (existingUser.length > 0) {
-        throw {
-          status: 422,
-          message: 'User with this email or username already exists'
-        };
+        throw { status: 422, message: 'User with this email or username already exists' };
       }
 
-      // Hash password
       const hashedPassword = await bcrypt.hash(password, 12);
 
-      // Insert new user
       await connection.query(
         'INSERT INTO users (username, email, password, firstName, lastName) VALUES (?, ?, ?, ?, ?)',
         [username, email, hashedPassword, firstName, lastName]
       );
 
-      // Fetch created user
       const [newUser] = await connection.query(
         'SELECT id, username, email, firstName, lastName FROM users WHERE email = ?',
         [email]
       );
 
-      // Generate JWT token
-      const encodedToken = jwt.sign(
+      const accessToken = jwt.sign(
         { userId: newUser[0].id, username: newUser[0].username },
         process.env.JWT_SECRET,
+        { expiresIn: '15m' }
+      );
+
+      const refreshToken = jwt.sign(
+        { userId: newUser[0].id, username: newUser[0].username },
+        process.env.JWT_REFRESH_SECRET,
         { expiresIn: '7d' }
+      );
+
+      await connection.query(
+        'UPDATE users SET refresh_token = ? WHERE id = ?',
+        [refreshToken, newUser[0].id]
       );
 
       return {
         createdUser: newUser[0],
-        encodedToken
+        accessToken,
+        refreshToken
       };
     } finally {
       if (connection) connection.release();
@@ -61,48 +61,45 @@ const authService = {
   },
 
   async login(email, password) {
-    // Validate inputs
     if (!email || !password) {
-      throw {
-        status: 400,
-        message: 'Email and password are required'
-      };
+      throw { status: 400, message: 'Email and password are required' };
     }
 
     let connection;
     try {
       connection = await pool.getConnection();
 
-      // Fetch user by email
       const [users] = await connection.query(
         'SELECT id, username, profileImage, email, password, firstName, lastName FROM users WHERE email = ?',
         [email]
       );
 
       if (users.length === 0) {
-        throw {
-          status: 401,
-          message: 'Invalid email or password'
-        };
+        throw { status: 401, message: 'Invalid email or password' };
       }
 
       const user = users[0];
 
-      // Verify password
       const isPasswordValid = await bcrypt.compare(password, user.password);
-
       if (!isPasswordValid) {
-        throw {
-          status: 401,
-          message: 'Invalid email or password'
-        };
+        throw { status: 401, message: 'Invalid email or password' };
       }
 
-      // Generate JWT token
-      const encodedToken = jwt.sign(
+      const accessToken = jwt.sign(
         { userId: user.id, username: user.username },
         process.env.JWT_SECRET,
+        { expiresIn: '15m' }
+      );
+
+      const refreshToken = jwt.sign(
+        { userId: user.id, username: user.username },
+        process.env.JWT_REFRESH_SECRET,
         { expiresIn: '7d' }
+      );
+
+      await connection.query(
+        'UPDATE users SET refresh_token = ? WHERE id = ?',
+        [refreshToken, user.id]
       );
 
       return {
@@ -114,29 +111,98 @@ const authService = {
           lastName: user.lastName,
           profileImage: user.profileImage
         },
-        encodedToken
+        accessToken,
+        refreshToken
       };
     } finally {
       if (connection) connection.release();
     }
   },
 
-  async logout(token) {
-    const redisClient = require('../config/redis');
-    
+  async refreshToken(oldRefreshToken) {
+    let connection;
     try {
-      const cleanToken = token.startsWith('Bearer ') ? token.slice(7) : token;
-      
-      // Add token to blacklist for 7 days (604800 seconds = 7 * 24 * 60 * 60)
-      await redisClient.set(`blacklist:${cleanToken}`, '1', { EX: 604800 });
-      
-      console.log('✓ Token added to blacklist');
+      connection = await pool.getConnection();
+
+      let payload;
+      try {
+        payload = jwt.verify(oldRefreshToken, process.env.JWT_REFRESH_SECRET);
+      } catch {
+        throw { status: 401, message: 'Invalid refresh token' };
+      }
+
+      const [users] = await connection.query(
+        'SELECT id FROM users WHERE id = ? AND refresh_token = ?',
+        [payload.userId, oldRefreshToken]
+      );
+
+      if (users.length === 0) {
+        throw { status: 401, message: 'Refresh token not found' };
+      }
+
+      const newAccessToken = jwt.sign(
+        { userId: payload.userId, username: payload.username },
+        process.env.JWT_SECRET,
+        { expiresIn: '15m' }
+      );
+
+      return { accessToken: newAccessToken };
+    } finally {
+      if (connection) connection.release();
+    }
+  }
+  
+  // async refreshToken(oldRefreshToken) {
+  //   let connection;
+
+  //   try {
+
+  //     connection = await pool.getConnection();
+
+  //     let payload;
+
+  //     try {
+  //       payload = jwt.verify(oldRefreshToken, process.env.JWT_REFRESH_SECRET);
+  //     }
+  //     catch {
+  //       throw { status: 401, message: 'Invalid refresh token' };
+  //     }
+
+  //     const [users] = await connection.query(
+  //       `SELECT id from users where id = ? and refresh_token = ?`,
+  //       [payload.userId, oldRefreshToken]
+  //     );
+
+  //     if (users.length === 0) {
+  //       throw { status: 401, message: 'Refresh token not found' };
+  //     }
+
+  //     const newAccessToken = jwt.sign(
+  //       { userId: payload.userId, username: payload.username },
+  //       process.env.JWT_SECRET,
+  //       { expiresIn: '15m' }
+  //     )
+
+  //     return { accessToken: newAccessToken };
+  //   }
+  //   finally {
+  //     if (connection) connection.release();
+  //   }
+  // }
+  
+  ,
+
+  async logout(userId) {
+    let connection;
+    try {
+      connection = await pool.getConnection();
+      await connection.query(
+        'UPDATE users SET refresh_token = NULL WHERE id = ?',
+        [userId]
+      );
       return { message: 'Logged out successfully' };
-    } catch (error) {
-      throw {
-        status: 500,
-        message: 'Error during logout'
-      };
+    } finally {
+      if (connection) connection.release();
     }
   }
 };
