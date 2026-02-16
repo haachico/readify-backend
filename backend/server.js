@@ -7,6 +7,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
+const cookieParser = require('cookie-parser');
 const allowedOrigins = ['http://localhost:3000', 'https://readify-lilac.vercel.app'];
 
 app.use(cors({
@@ -23,6 +24,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+app.use(cookieParser());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 

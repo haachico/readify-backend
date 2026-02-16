@@ -88,7 +88,7 @@ const authService = {
       const accessToken = jwt.sign(
         { userId: user.id, username: user.username },
         process.env.JWT_SECRET,
-        { expiresIn: '15m' }
+        { expiresIn: '15min' }
       );
 
       const refreshToken = jwt.sign(
@@ -131,6 +131,8 @@ const authService = {
         throw { status: 401, message: 'Invalid refresh token' };
       }
 
+      console.log(payload, oldRefreshToken, "payload in refreshToken service");
+
       const [users] = await connection.query(
         'SELECT id FROM users WHERE id = ? AND refresh_token = ?',
         [payload.userId, oldRefreshToken]
@@ -143,7 +145,7 @@ const authService = {
       const newAccessToken = jwt.sign(
         { userId: payload.userId, username: payload.username },
         process.env.JWT_SECRET,
-        { expiresIn: '15m' }
+        { expiresIn: '15min' }
       );
 
       return { accessToken: newAccessToken };

@@ -28,7 +28,7 @@ const authController = {
         httpOnly: true,
         secure: false, // Set to true only for HTTPS
         sameSite: 'lax',
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        maxAge: 7*24 * 60 * 60 * 1000 // 7 days
       });
 
       const { refreshToken, ...responseData } = result;
@@ -66,22 +66,34 @@ const authController = {
       }
     },
 
-  refreshToken: async (req, res) => {
+  refreshTokenAPI: async (req, res) => {
     try {
-      const { refreshToken } = req.cookies || req.body;
-      if (!refreshToken) {
-        return res.status(400).json({ message: 'No refresh token provided' });
+      console.log('=== REFRESH TOKEN CONTROLLER CALLED ===');
+      console.log('req.cookies:', req.cookies);
+      console.log('req.body:', req.body);
+      let refreshToken = req.cookies && req.cookies.refreshToken;
+      if (!refreshToken && req.body && req.body.refreshToken) {
+        refreshToken = req.body.refreshToken;
       }
+      if (!refreshToken) {
+        console.error('No refresh token found in cookies or body');
+        return res.status(400).json({ message: 'No refresh token provided in cookies or body' });
+      }
+
+      console.log('refreshToken value:', refreshToken);
       const result = await authService.refreshToken(refreshToken);
-      // Set new refresh token as httpOnly cookie
-      res.cookie('refreshToken', result.refreshToken, {
-        httpOnly: true,
-        secure: false, // Set to true only for HTTPS
-        sameSite: 'lax',
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-      });
+      // Set new refresh token as httpOnly cookie if present
+      if (result.refreshToken) {
+        res.cookie('refreshToken', result.refreshToken, {
+          httpOnly: true,
+          secure: false, // Set to true only for HTTPS
+          sameSite: 'lax',
+          maxAge: 3 * 60 * 1000 // 3 minutes
+        });
+      }
       // Remove refreshToken from response body
       const { refreshToken: newRefreshToken, ...responseData } = result;
+      console.log('refreshToken result:', responseData);
       res.status(200).json(responseData);
     } catch (error) {
       console.error('Refresh token error:', error);
