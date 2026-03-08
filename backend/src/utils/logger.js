@@ -25,27 +25,35 @@ const Logger = {
   },
 
   async logError(message, route, method, ipAddress, statusCode, error) {
-    await this.log({
-      level: 'ERROR',
-      message,
-      route,
-      method,
-      ipAddress,
-      statusCode,
-      details: { errorMessage: error.message, stack: error.stack }
-    });
+    try {
+      await this.log({
+        level: 'ERROR',
+        message,
+        route,
+        method,
+        ipAddress,
+        statusCode,
+        details: { errorMessage: error.message, stack: error.stack }
+      });
+    } catch (err) {
+      console.error('LogError failed:', err);
+    }
   },
 
   async logInfo(message, route, method, ipAddress, statusCode, details) {
-    await this.log({
-      level: 'INFO',
-      message,
-      route,
-      method,
-      ipAddress,
-      statusCode,
-      details
-    });
+    try {
+      await this.log({
+        level: 'INFO',
+        message,
+        route,
+        method,
+        ipAddress,
+        statusCode,
+        details
+      });
+    } catch (err) {
+      console.error('LogInfo failed:', err);
+    }
   }
 };
 
