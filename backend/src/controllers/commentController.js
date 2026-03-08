@@ -2,6 +2,7 @@ const { get } = require('../config/redis');
 // const commentService = require('../services/commentService');
 
 const {addComment, getCommnentsByPostId, deleteComment, addReply} = require('../services/commentService');
+const Logger = require('../utils/logger');
 
 
 const commentController = {
@@ -22,9 +23,25 @@ const commentController = {
       content,
       parentCommentId: parentCommentId || null
     });
+    await Logger.logInfo(
+      `User added comment`,
+      `/api/posts/:postId/comments`,
+      'POST',
+      req.ipAddress,
+      201,
+      { userId, postId, commentId: comment.id }
+    );
     res.status(201).json({ message: 'Comment added', comment });
   } catch (error) {
     console.error('Error adding comment:', error);
+    await Logger.logError(
+      `Failed to add comment`,
+      `/api/posts/:postId/comments`,
+      'POST',
+      req.ipAddress,
+      500,
+      error
+    );
     res.status(500).json({ message: 'Server error adding comment', error: error.message });
   }
 },
@@ -41,10 +58,26 @@ addAReply : async (req, res) => {
     }
     
     const reply = await addReply({postId, userId, content, commentId});
+    await Logger.logInfo(
+      `User added reply to comment`,
+      `/api/comments/:commentId/reply`,
+      'POST',
+      req.ipAddress,
+      201,
+      { userId, commentId, postId }
+    );
 
     res.status(201).json({ message: 'Reply added', reply });
   }
   catch(error ){
+    await Logger.logError(
+      `Failed to add reply`,
+      `/api/comments/:commentId/reply`,
+      'POST',
+      req.ipAddress,
+      500,
+      error
+    );
     res.status(500).json({ message: 'Server error adding reply', error: error.message });
   }
 
@@ -65,9 +98,25 @@ addAReply : async (req, res) => {
     try {
         const { postId, commentId } = req.params;
         await deleteComment(commentId, postId);
+        await Logger.logInfo(
+          `User deleted comment`,
+          `/api/posts/:postId/comments/:commentId`,
+          'DELETE',
+          req.ipAddress,
+          200,
+          { userId: req.auth.userId, postId, commentId }
+        );
         res.status(200).json({ message: 'Comment deleted' });
     }
     catch(error){
+       await Logger.logError(
+         `Failed to delete comment`,
+         `/api/posts/:postId/comments/:commentId`,
+         'DELETE',
+         req.ipAddress,
+         500,
+         error
+       );
        res.status(500).json({ message: 'Server error deleting comment', error: error.message }); 
     }
 

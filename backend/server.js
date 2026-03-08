@@ -28,6 +28,11 @@ app.use(cookieParser());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
+const loggerMiddleware = require('./src/middleware/loggerMiddleware');
+
+app.use(loggerMiddleware)
+
+
 // // Debug middleware to check body
 // app.use((req, res, next) => {
 //   console.log('Request body:', req.body);
@@ -58,6 +63,7 @@ app.get('/', (req, res) => {
 
 const notificationRoutes = require('./src/routes/notificationRoutes');
 app.use('/api/notifications', notificationRoutes);
+
 
 // Error handling middleware
 app.use((err, req, res, next) => {

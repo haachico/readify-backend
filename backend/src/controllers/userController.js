@@ -1,4 +1,5 @@
 const userService = require('../services/userService');
+const Logger = require('../utils/logger');
 
 const userController = {
   getAllUsers: async (req, res) => {
@@ -39,10 +40,26 @@ const userController = {
       const followerId = req.auth.userId;
       const { followingId } = req.body;
       const result = await userService.followUser(followerId, followingId);
+      await Logger.logInfo(
+        `User followed another user`,
+        `/api/users/follow`,
+        'POST',
+        req.ipAddress,
+        200,
+        { followerId, followingId }
+      );
       res.status(200).json(result);
     } catch (error) {
       console.error('Follow user error:', error);
       const status = error.status || 500;
+      await Logger.logError(
+        `Failed to follow user`,
+        `/api/users/follow`,
+        'POST',
+        req.ipAddress,
+        status,
+        error
+      );
       res.status(status).json({ message: error.message || 'Server error during follow user', error: error.message });
     }
   },
@@ -52,9 +69,25 @@ const userController = {
       const userId = req.auth.userId;
       const { profileImage, about, link } = req.body;
       const result = await userService.updateProfile(userId, profileImage, about, link);
+      await Logger.logInfo(
+        `User updated profile`,
+        `/api/users/profile`,
+        'PUT',
+        req.ipAddress,
+        200,
+        { userId }
+      );
       res.status(200).json(result);
     } catch (error) {
       console.error('Update profile error:', error);
+      await Logger.logError(
+        `Failed to update profile`,
+        `/api/users/profile`,
+        'PUT',
+        req.ipAddress,
+        500,
+        error
+      );
       res.status(500).json({ message: 'Server error updating profile', error: error.message });
     }
   },

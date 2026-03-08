@@ -1,4 +1,5 @@
 const postService = require('../services/postService');
+const Logger = require('../utils/logger');
 
 const postController = {
   getAllPosts: async (req, res) => {
@@ -64,9 +65,25 @@ const postController = {
       const { content, imgContent } = req.body;
       const userId = req.auth.userId;
       const result = await postService.createPost(content, imgContent, userId);
+      await Logger.logInfo(
+        `User created post`,
+        `/api/posts`,
+        'POST',
+        req.ipAddress,
+        201,
+        { userId, postId: result.postId }
+      );
       res.status(201).json(result);
     } catch (error) {
       console.error('Create post error:', error);
+      await Logger.logError(
+        `Failed to create post`,
+        `/api/posts`,
+        'POST',
+        req.ipAddress,
+        500,
+        error
+      );
       res.status(500).json({ message: 'Server error creating post', error: error.message });
     }
   },
@@ -90,9 +107,25 @@ const postController = {
       const { postId } = req.params;
       const userId = req.auth.userId;
       const result = await postService.bookmarkPost(postId, userId);
+      await Logger.logInfo(
+        `User bookmarked post`,
+        `/api/posts/:postId/bookmark`,
+        'POST',
+        req.ipAddress,
+        200,
+        { userId, postId }
+      );
       res.status(200).json(result);
     } catch (error) {
       console.error('Bookmark post error:', error);
+      await Logger.logError(
+        `Failed to bookmark post`,
+        `/api/posts/:postId/bookmark`,
+        'POST',
+        req.ipAddress,
+        500,
+        error
+      );
       res.status(500).json({ message: 'Server error bookmarking post', error: error.message });
     }
   },
@@ -102,9 +135,25 @@ const postController = {
       const { postId } = req.params;
       const userId = req.auth.userId;
       const result = await postService.removeBookmark(postId, userId);
+      await Logger.logInfo(
+        `User removed bookmark from post`,
+        `/api/posts/:postId/bookmark`,
+        'DELETE',
+        req.ipAddress,
+        200,
+        { userId, postId }
+      );
       res.status(200).json(result);
     } catch (error) {
       console.error('Remove bookmark error:', error);
+      await Logger.logError(
+        `Failed to remove bookmark`,
+        `/api/posts/:postId/bookmark`,
+        'DELETE',
+        req.ipAddress,
+        500,
+        error
+      );
       res.status(500).json({ message: 'Server error removing bookmark', error: error.message });
     }
   },
@@ -114,10 +163,26 @@ const postController = {
       const { postId } = req.params;
       const userId = req.auth.userId;
       const result = await postService.deletePost(postId, userId);
+      await Logger.logInfo(
+        `User deleted post`,
+        `/api/posts/:postId`,
+        'DELETE',
+        req.ipAddress,
+        200,
+        { userId, postId }
+      );
       res.status(200).json(result);
     } catch (error) {
       console.error('Delete post error:', error);
       const status = error.status || 500;
+      await Logger.logError(
+        `Failed to delete post`,
+        `/api/posts/:postId`,
+        'DELETE',
+        req.ipAddress,
+        status,
+        error
+      );
       res.status(status).json({ message: error.message || 'Server error deleting post', error: error.message });
     }
   },

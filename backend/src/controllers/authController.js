@@ -1,4 +1,5 @@
 const authService = require('../services/authService');
+const Logger = require('../utils/logger');
 
 const authController = {
   logout: async (req, res) => {
@@ -11,11 +12,32 @@ const authController = {
         secure: false, // Set to true only for HTTPS
         sameSite: 'lax',
       });
+      
+      // Log successful logout
+      await Logger.logInfo(
+        'User logged out successfully',
+        '/api/auth/logout',
+        'POST',
+        req.ipAddress,
+        200
+      );
+      
       res.status(200).json({ message: 'Logged out successfully' });
     } catch (error) {
       console.error('Logout error:', error);
       const status = error.status || 500;
       const message = error.message || 'Server error during logout';
+      
+      // Log logout error
+      await Logger.logError(
+        'Logout failed: ' + message,
+        '/api/auth/logout',
+        'POST',
+        req.ipAddress,
+        status,
+        error
+      );
+      
       res.status(status).json({ message, error: error.message });
     }
   },
@@ -32,11 +54,33 @@ const authController = {
       });
 
       const { refreshToken, ...responseData } = result;
+      
+      // Log successful signup
+      await Logger.logInfo(
+        'New user registered',
+        '/api/auth/signup',
+        'POST',
+        req.ipAddress,
+        201,
+        { userId: responseData.createdUser.id, username, email }
+      );
+      
       res.status(201).json(responseData);
     } catch (error) {
       console.error('Signup error:', error);
       const status = error.status || 500;
       const message = error.message || 'Server error during signup';
+      
+      // Log signup error
+      await Logger.logError(
+        'Signup failed: ' + message,
+        '/api/auth/signup',
+        'POST',
+        req.ipAddress,
+        status,
+        error
+      );
+      
       res.status(status).json({ message, error: error.message });
     }
   },
@@ -54,6 +98,17 @@ const authController = {
         });
 
         const { refreshToken, accessToken, foundUser } = result;
+        
+        // Log successful login
+        await Logger.logInfo(
+          'User logged in successfully',
+          '/api/auth/login',
+          'POST',
+          req.ipAddress,
+          200,
+          { userId: foundUser.id, email: foundUser.email }
+        );
+
         res.status(200).json({
           encodedToken: accessToken,
            foundUser
@@ -62,15 +117,24 @@ const authController = {
         console.error('Login error:', error);
         const status = error.status || 500;
         const message = error.message || 'Server error during login';
+        
+        // Log login error
+        await Logger.logError(
+          'Login failed: ' + message,
+          '/api/auth/login',
+          'POST',
+          req.ipAddress,
+          status,
+          error
+        );
+        
         res.status(status).json({ message, error: error.message });
       }
     },
 
   refreshTokenAPI: async (req, res) => {
     try {
-      console.log('=== REFRESH TOKEN CONTROLLER CALLED ===');
-      console.log('req.cookies:', req.cookies);
-      console.log('req.body:', req.body);
+   
       let refreshToken = req.cookies && req.cookies.refreshToken;
       if (!refreshToken && req.body && req.body.refreshToken) {
         refreshToken = req.body.refreshToken;
@@ -101,17 +165,7 @@ const authController = {
       const message = error.message || 'Server error during token refresh';
       res.status(status).json({ message, error: error.message });
     }
-  },
-
-    logout: async (req, res) => {
-      try {
-        await authService.logout(req.user.id);
-        res.clearCookie('refreshToken');
-        res.json({ message: 'Logged out successfully' });
-      } catch (err) {
-        res.status(err.status || 500).json({ error: err.message });
-      }
-    }
+  }
 };
 
 module.exports = authController;
