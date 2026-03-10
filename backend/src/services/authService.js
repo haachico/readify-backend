@@ -2,6 +2,9 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 
+const emailService = require('../utils/emailService');
+const crypto = require('crypto');
+
 const authService = {
   async signup(username, email, password, firstName, lastName) {
     if (!username || !email || !password) {
@@ -206,7 +209,76 @@ const authService = {
     } finally {
       if (connection) connection.release();
     }
+  },
+
+  
+async forgotPassword(email) {
+  let connection;
+  try {
+    connection = await pool.getConnection();
+
+    // Check if user exists
+    const [users] = await connection.query(
+      'SELECT id, firstName FROM users WHERE email = ?',
+      [email]
+    );
+
+    if (users.length === 0) {
+      throw { status: 404, message: 'User not found' };
+    }
+
+    // Generate reset token (random 32 bytes)
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    
+    // Token expires in 1 hour
+    const expiryTime = new Date(Date.now() + 60 * 60 * 1000);
+
+    // Save token to database
+    await connection.query(
+      'UPDATE users SET reset_token = ?, reset_token_expiry = ? WHERE email = ?',
+      [resetToken, expiryTime, email]
+    );
+
+    // Send email
+    await emailService.sendResetEmail(email, resetToken, users[0].firstName);
+
+    return { message: 'Reset email sent successfully' };
+  } finally {
+    if (connection) connection.release();
   }
+},
+
+
+async resetPassword(resetToken, newPassword) {
+  let connection;
+  try {
+    connection = await pool.getConnection();
+
+    const [users] = await connection.query(
+      'SELECT id FROM users WHERE reset_token = ? AND reset_token_expiry > NOW()',
+      [resetToken]
+    );
+
+    if (users.length === 0) {
+      throw { status: 400, message: 'Invalid or expired reset token' };
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    await connection.query(
+      'UPDATE users SET password = ?, reset_token = NULL, reset_token_expiry = NULL WHERE id = ?',
+      [hashedPassword, users[0].id]
+    );
+
+    return { message: 'Password reset successfully' };
+    
+}
+
+finally {
+    if (connection) connection.release();
+}
+
+}
 };
 
 module.exports = authService;
