@@ -255,3 +255,5 @@
 - Prioritize features based on user feedback and business goals
 - Consider scalability and performance implications before implementation
 - Maintain backward compatibility for API changes
+
+to add cron, ai (for chats, like for post suggestions), to implement websocket, use redis for queues.
