@@ -62,7 +62,14 @@ const postController = {
 
   createPost: async (req, res) => {
     try {
-      const { content, imgContent } = req.body;
+
+         console.log('===== CREATE POST DEBUG =====');
+    console.log('req.file:', req.file);
+    console.log('req.body:', req.body);
+    console.log('req.headers content-type:', req.headers['content-type']);
+    console.log('=============================');
+      const { content } = req.body;
+      const imgContent = req.file ? req.file.filename : null;
       const userId = req.auth.userId;
       const result = await postService.createPost(content, imgContent, userId);
       await Logger.logInfo(
@@ -91,7 +98,8 @@ const postController = {
   editPost: async (req, res) => {
     try {
       const { postId } = req.params;
-      const { content, imgContent } = req.body;
+      const { content } = req.body;
+      const imgContent = req.file ? req.file.filename : null;
       const userId = req.auth.userId;
       const result = await postService.editPost(postId, userId, content, imgContent);
       res.status(200).json(result);

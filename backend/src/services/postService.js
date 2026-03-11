@@ -79,7 +79,7 @@ const postService = {
       const postsWithLikes = posts.map(post => ({
         _id: post.id,
         content: post.content,
-        imgContent: post.imageUrl,
+        imgContent: post.imageUrl ? `http://localhost:5000/uploads/${post.imageUrl}` : null,
         username: post.username,
         firstName: post.firstName,
         lastName: post.lastName,
@@ -239,7 +239,7 @@ const postService = {
       const postsWithLikes = posts.map(post => ({
         _id: post.id,
         content: post.content,
-        imgContent: post.imageUrl,
+        imgContent: post.imageUrl ? `http://localhost:5000/uploads/${post.imageUrl}` : null,
         username: post.username,
         firstName: post.firstName,
         lastName: post.lastName,
@@ -355,7 +355,7 @@ const postService = {
       const postsWithLikes = posts.map(post => ({
         _id: post.id,
         content: post.content,
-        imgContent: post.imageUrl,
+        imgContent: post.imageUrl ? `http://localhost:5000/uploads/${post.imageUrl}` : null,
         username: post.username,
         firstName: post.firstName,
         lastName: post.lastName,
