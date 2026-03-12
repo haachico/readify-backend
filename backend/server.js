@@ -83,6 +83,7 @@ app.get('/', (req, res) => {
 });
 
 const notificationRoutes = require('./src/routes/notificationRoutes');
+const { startCronJobs } = require('./src/config/cron');
 app.use('/api/notifications', notificationRoutes);
 
 
@@ -95,6 +96,8 @@ app.use((err, req, res, next) => {
   });
 });
 
+// CRON jobs - Commented out for now, can enable later
+// startCronJobs();
 // Start server
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);

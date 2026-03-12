@@ -36,6 +36,24 @@ const emailService = {
       console.error('Error details:', error);
       throw { status: 500, message: 'Failed to send reset email: ' + error.message };
     }
+  },
+ 
+  async sendEmail(to, subject, html) {
+    const mailOptions = {
+      from: process.env.EMAIL_FROM,
+      to,
+      subject,
+      html
+    };
+    try {
+      await transporter.sendMail(mailOptions);
+      console.log('✅ Email sent successfully to:', to);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Email send error:', error.message);
+      console.error('Error details:', error);
+      throw { status: 500, message: 'Failed to send email: ' + error.message };
+    }
   }
 };
 
