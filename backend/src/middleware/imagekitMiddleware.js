@@ -34,22 +34,16 @@ const uploadToImageKit = async (req, res, next) => {
     const fileName = `${Date.now()}-${req.file.originalname}`;
     const folderPath = `/readify/${new Date().getFullYear()}/${new Date().getMonth() + 1}`;
 
-    console.log("🔄 Uploading to ImageKit...");
-    console.log("URL Endpoint:", process.env.IMAGEKIT_URL_ENDPOINT);
-    console.log("Public Key Set:", !!process.env.IMAGEKIT_PUBLIC_KEY);
-    console.log("Private Key Set:", !!process.env.IMAGEKIT_PRIVATE_KEY);
 
     const response = await imagekit.upload({
       file: req.file.buffer,
       fileName: fileName,
-      folder: folderPath,
+      // Temporarily removing folder to debug 404 issues
+      // folder: folderPath,
       isPrivateFile: false,
     });
 
-    console.log("✅ ImageKit Upload Success:");
-    console.log("URL:", response.url);
-    console.log("File ID:", response.fileId);
-    console.log("File Path:", response.filePath);
+
 
     // Replace file object with ImageKit URL
     req.file.imageUrl = response.url;
