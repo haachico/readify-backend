@@ -1,5 +1,6 @@
 const pool = require('../config/db');
 const redisClient = require('../config/redis');
+const { getImageUrl } = require('../utils/imageUrl');
 
 // Helper function to format posts with likes and bookmarks
 // async function formatPostsWithLikesAndBookmarks(posts, connection) {
@@ -79,7 +80,7 @@ const postService = {
       const postsWithLikes = posts.map(post => ({
         _id: post.id,
         content: post.content,
-        imgContent: post.imageUrl ? `http://localhost:5000/uploads/${post.imageUrl}` : null,
+        imgContent: getImageUrl(post.imageUrl),
         username: post.username,
         firstName: post.firstName,
         lastName: post.lastName,
@@ -129,7 +130,7 @@ const postService = {
       const postsWithLikes = posts.map(post => ({
         _id: post.id,
         content: post.content,
-        imgContent: post.imageUrl,
+        imgContent: getImageUrl(post.imageUrl),
         username: post.username,
         firstName: post.firstName,
         lastName: post.lastName,
@@ -181,7 +182,7 @@ const postService = {
       const postsWithLikes = posts.map(post => ({
         _id: post.id,
         content: post.content,
-        imgContent: post.imageUrl,
+        imgContent: getImageUrl(post.imageUrl),
         username: post.username,
         firstName: post.firstName,
         lastName: post.lastName,
@@ -239,7 +240,7 @@ const postService = {
       const postsWithLikes = posts.map(post => ({
         _id: post.id,
         content: post.content,
-        imgContent: post.imageUrl ? `http://localhost:5000/uploads/${post.imageUrl}` : null,
+        imgContent: getImageUrl(post.imageUrl),
         username: post.username,
         firstName: post.firstName,
         lastName: post.lastName,
@@ -295,7 +296,7 @@ const postService = {
       const postsWithLikes = posts.map(post => ({
         _id: post.id,
         content: post.content,
-        imgContent: post.imageUrl,
+        imgContent: getImageUrl(post.imageUrl),
         username: post.username,
         firstName: post.firstName,
         lastName: post.lastName,
@@ -355,7 +356,7 @@ const postService = {
       const postsWithLikes = posts.map(post => ({
         _id: post.id,
         content: post.content,
-        imgContent: post.imageUrl ? `http://localhost:5000/uploads/${post.imageUrl}` : null,
+        imgContent: getImageUrl(post.imageUrl),
         username: post.username,
         firstName: post.firstName,
         lastName: post.lastName,
