@@ -1,5 +1,5 @@
-const postService = require('../services/postService');
-const Logger = require('../utils/logger');
+const postService = require("../services/postService");
+const Logger = require("../utils/logger");
 
 const postController = {
   getAllPosts: async (req, res) => {
@@ -7,23 +7,26 @@ const postController = {
       const result = await postService.getAllPosts();
       res.status(200).json(result);
     } catch (error) {
-      console.error('Get all posts error:', error);
-      res.status(500).json({ message: 'Server error fetching posts', error: error.message });
+      console.error("Get all posts error:", error);
+      res
+        .status(500)
+        .json({ message: "Server error fetching posts", error: error.message });
     }
   },
 
-  getPostDetailsById : async (req, res) => {
-
+  getPostDetailsById: async (req, res) => {
     try {
-
       const { postId } = req.params;
       const result = await postService.getPostById(postId);
-      
-      res.status(200).json(result);
 
-    }
-    catch(error){
-        res.status(500).json({ message: 'Server error fetching post details', error: error.message });
+      res.status(200).json(result);
+    } catch (error) {
+      res
+        .status(500)
+        .json({
+          message: "Server error fetching post details",
+          error: error.message,
+        });
     }
   },
 
@@ -32,8 +35,13 @@ const postController = {
       const result = await postService.getTrendingPosts();
       res.status(200).json(result);
     } catch (error) {
-      console.error('Get trending posts error:', error);
-      res.status(500).json({ message: 'Server error fetching trending posts', error: error.message });
+      console.error("Get trending posts error:", error);
+      res
+        .status(500)
+        .json({
+          message: "Server error fetching trending posts",
+          error: error.message,
+        });
     }
   },
 
@@ -44,8 +52,13 @@ const postController = {
       const result = await postService.getFeedPosts(userId, sort);
       res.status(200).json(result);
     } catch (error) {
-      console.error('Get feed posts error:', error);
-      res.status(500).json({ message: 'Server error fetching feed posts', error: error.message });
+      console.error("Get feed posts error:", error);
+      res
+        .status(500)
+        .json({
+          message: "Server error fetching feed posts",
+          error: error.message,
+        });
     }
   },
 
@@ -55,43 +68,49 @@ const postController = {
       const result = await postService.getBookmarkedPosts(userId);
       res.status(200).json(result);
     } catch (error) {
-      console.error('Get bookmarked posts error:', error);
-      res.status(500).json({ message: 'Server error fetching bookmarked posts', error: error.message });
+      console.error("Get bookmarked posts error:", error);
+      res
+        .status(500)
+        .json({
+          message: "Server error fetching bookmarked posts",
+          error: error.message,
+        });
     }
   },
 
   createPost: async (req, res) => {
     try {
-
-         console.log('===== CREATE POST DEBUG =====');
-    console.log('req.file:', req.file);
-    console.log('req.body:', req.body);
-    console.log('req.headers content-type:', req.headers['content-type']);
-    console.log('=============================');
+      console.log("===== CREATE POST DEBUG =====");
+      console.log("req.file:", req.file);
+      console.log("req.body:", req.body);
+      console.log("req.headers content-type:", req.headers["content-type"]);
+      console.log("=============================");
       const { content } = req.body;
-      const imgContent = req.file ? req.file.filename : null;
+      const imgContent = req.file ? req.file.imageUrl : null;
       const userId = req.auth.userId;
       const result = await postService.createPost(content, imgContent, userId);
       await Logger.logInfo(
         `User created post`,
         `/api/posts`,
-        'POST',
+        "POST",
         req.ipAddress,
         201,
-        { userId, postId: result.postId }
+        { userId, postId: result.postId },
       );
       res.status(201).json(result);
     } catch (error) {
-      console.error('Create post error:', error);
+      console.error("Create post error:", error);
       await Logger.logError(
         `Failed to create post`,
         `/api/posts`,
-        'POST',
+        "POST",
         req.ipAddress,
         500,
-        error
+        error,
       );
-      res.status(500).json({ message: 'Server error creating post', error: error.message });
+      res
+        .status(500)
+        .json({ message: "Server error creating post", error: error.message });
     }
   },
 
@@ -99,14 +118,24 @@ const postController = {
     try {
       const { postId } = req.params;
       const { content } = req.body;
-      const imgContent = req.file ? req.file.filename : null;
+      const imgContent = req.file ? req.file.imageUrl : null;
       const userId = req.auth.userId;
-      const result = await postService.editPost(postId, userId, content, imgContent);
+      const result = await postService.editPost(
+        postId,
+        userId,
+        content,
+        imgContent,
+      );
       res.status(200).json(result);
     } catch (error) {
-      console.error('Edit post error:', error);
+      console.error("Edit post error:", error);
       const status = error.status || 500;
-      res.status(status).json({ message: error.message || 'Server error editing post', error: error.message });
+      res
+        .status(status)
+        .json({
+          message: error.message || "Server error editing post",
+          error: error.message,
+        });
     }
   },
 
@@ -118,23 +147,28 @@ const postController = {
       await Logger.logInfo(
         `User bookmarked post`,
         `/api/posts/:postId/bookmark`,
-        'POST',
+        "POST",
         req.ipAddress,
         200,
-        { userId, postId }
+        { userId, postId },
       );
       res.status(200).json(result);
     } catch (error) {
-      console.error('Bookmark post error:', error);
+      console.error("Bookmark post error:", error);
       await Logger.logError(
         `Failed to bookmark post`,
         `/api/posts/:postId/bookmark`,
-        'POST',
+        "POST",
         req.ipAddress,
         500,
-        error
+        error,
       );
-      res.status(500).json({ message: 'Server error bookmarking post', error: error.message });
+      res
+        .status(500)
+        .json({
+          message: "Server error bookmarking post",
+          error: error.message,
+        });
     }
   },
 
@@ -146,23 +180,28 @@ const postController = {
       await Logger.logInfo(
         `User removed bookmark from post`,
         `/api/posts/:postId/bookmark`,
-        'DELETE',
+        "DELETE",
         req.ipAddress,
         200,
-        { userId, postId }
+        { userId, postId },
       );
       res.status(200).json(result);
     } catch (error) {
-      console.error('Remove bookmark error:', error);
+      console.error("Remove bookmark error:", error);
       await Logger.logError(
         `Failed to remove bookmark`,
         `/api/posts/:postId/bookmark`,
-        'DELETE',
+        "DELETE",
         req.ipAddress,
         500,
-        error
+        error,
       );
-      res.status(500).json({ message: 'Server error removing bookmark', error: error.message });
+      res
+        .status(500)
+        .json({
+          message: "Server error removing bookmark",
+          error: error.message,
+        });
     }
   },
 
@@ -174,24 +213,29 @@ const postController = {
       await Logger.logInfo(
         `User deleted post`,
         `/api/posts/:postId`,
-        'DELETE',
+        "DELETE",
         req.ipAddress,
         200,
-        { userId, postId }
+        { userId, postId },
       );
       res.status(200).json(result);
     } catch (error) {
-      console.error('Delete post error:', error);
+      console.error("Delete post error:", error);
       const status = error.status || 500;
       await Logger.logError(
         `Failed to delete post`,
         `/api/posts/:postId`,
-        'DELETE',
+        "DELETE",
         req.ipAddress,
         status,
-        error
+        error,
       );
-      res.status(status).json({ message: error.message || 'Server error deleting post', error: error.message });
+      res
+        .status(status)
+        .json({
+          message: error.message || "Server error deleting post",
+          error: error.message,
+        });
     }
   },
 
@@ -202,10 +246,15 @@ const postController = {
       const result = await postService.handleLikeDislike(postId, userId);
       res.status(200).json(result);
     } catch (error) {
-      console.error('Like/Dislike post error:', error);
-      res.status(500).json({ message: 'Server error handling like/dislike', error: error.message });
+      console.error("Like/Dislike post error:", error);
+      res
+        .status(500)
+        .json({
+          message: "Server error handling like/dislike",
+          error: error.message,
+        });
     }
-  }
+  },
 };
 
 module.exports = postController;
