@@ -153,6 +153,67 @@ const postService = {
     }
    },
 
+   async getPostsByUserId(userId) {
+
+    let connection;
+
+    try {
+
+        connection = await pool.getConnection();
+        
+        const [user] = await connection.query(
+          `SELECT id FROM users WHERE id = ?`,
+          [userId]
+        );
+
+        if(user.length === 0){
+          throw {
+            status: 404,
+            message: 'User not found'
+          }
+        }
+
+        const [posts] = await connection.query(
+            `SELECT p.id, p.content, p.imageUrl, p.userId, p.likeCount, p.createdAt, p.updatedAt, u.username, u.firstName, u.lastName, u.email, u.profileImage,
+            GROUP_CONCAT(l.userId) AS likedBy
+            FROM posts as p
+            LEFT JOIN users as u ON p.userId = u.id
+            LEFT JOIN likes as l ON l.postId = p.id
+            WHERE p.userId = ?
+            GROUP BY p.id
+            ORDER BY p.createdAt DESC`,
+            [userId]
+        );
+
+         const postsWithLikes = posts.map(post => ({
+        _id: post.id,
+        content: post.content,
+        imgContent: post.imageUrl,
+        username: post.username,
+        firstName: post.firstName,
+        lastName: post.lastName,
+        email: post.email,
+        image: post.profileImage,
+        likes: {
+          likeCount: post.likeCount,
+          likedBy: post.likedBy ? post.likedBy.split(',').map(Number) : []
+        },
+        createdAt: post.createdAt,
+        updatedAt: post.updatedAt
+      }));
+      return {
+        message: 'Posts fetched successfully',
+        posts: postsWithLikes
+      };
+
+    }
+    finally {
+    
+      if (connection) connection.release();
+    }
+
+   },
+
   async getTrendingPosts() {
     let connection;
     try {

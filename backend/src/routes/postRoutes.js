@@ -3,6 +3,7 @@ const express = require("express");
 const router = express.Router();
 const {
   getAllPosts,
+  getPostsByUserId,
   getTrendingPosts,
   getBookmarkedPosts,
   createPost,
@@ -31,6 +32,8 @@ router.post(
   uploadToImageKit,
   createPost,
 );
+
+router.get('/user/:userId', authMiddleware, getPostsByUserId);
 router.post(
   "/edit/:postId",
   authMiddleware,

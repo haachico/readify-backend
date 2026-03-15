@@ -30,6 +30,22 @@ const postController = {
     }
   },
 
+  getPostsByUserId: async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const result = await postService.getPostsByUserId(userId);
+      res.status(200).json(result);
+    } catch (error) {
+      console.error("Get posts by user ID error:", error);
+      res
+        .status(500)
+        .json({
+          message: "Server error fetching posts by user ID",
+          error: error.message,
+        });
+    }
+  },
+
   getTrendingPosts: async (req, res) => {
     try {
       const result = await postService.getTrendingPosts();
