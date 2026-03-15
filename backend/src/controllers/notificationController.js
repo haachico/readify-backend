@@ -2,7 +2,34 @@ const notificationService = require('../services/notificationService');
 const Logger = require('../utils/logger');
 
 
-const { getNotificationsByUserId, markAllAsRead, markNotificationRead } = notificationService;
+const { getNotificationsByUserId, getUnreadCountByUserId, markAllAsRead, markNotificationRead } = notificationService;
+
+const getUnreadCount = async (req, res) => {
+  try {
+    const userId = req.auth.userId;
+    const unreadCount = await getUnreadCountByUserId(userId);
+    await Logger.logInfo(
+      `User fetched unread notification count`,
+      `/api/notifications/unread-count`,
+      'GET',
+      req.ipAddress,
+      200,
+      { userId, unreadCount }
+    );
+    res.json({ unreadCount });
+  } catch (err) {
+    await Logger.logError(
+      `Failed to fetch unread notification count`,
+      `/api/notifications/unread-count`,
+      'GET',
+      req.ipAddress,
+      500,
+      err
+    );
+    res.status(500).json({ message: 'Error fetching unread count', error: err.message });
+  }
+};
+
 const getNotifications = async (req, res) => {
   try {
     const userId =req.auth.userId; 
@@ -84,6 +111,7 @@ const markSingleNotificationAsRead = async (req, res) => {
 }
 
 module.exports = {
+  getUnreadCount,
   getNotifications,
   markNotificationsAsRead,
   markSingleNotificationAsRead

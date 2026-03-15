@@ -85,6 +85,51 @@ const authController = {
     }
   },
 
+  googleLogin: async (req, res) => {
+    try {
+      const { credential } = req.body;
+      const result = await authService.googleLogin(credential);
+
+      res.cookie('refreshToken', result.refreshToken, {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
+      const { refreshToken, accessToken, foundUser } = result;
+
+      await Logger.logInfo(
+        'User logged in with Google successfully',
+        '/api/auth/google',
+        'POST',
+        req.ipAddress,
+        200,
+        { userId: foundUser.id, email: foundUser.email }
+      );
+
+      res.status(200).json({
+        encodedToken: accessToken,
+        foundUser,
+      });
+    } catch (error) {
+      console.error('Google login error:', error);
+      const status = error.status || 500;
+      const message = error.message || 'Server error during Google login';
+
+      await Logger.logError(
+        'Google login failed: ' + message,
+        '/api/auth/google',
+        'POST',
+        req.ipAddress,
+        status,
+        error
+      );
+
+      res.status(status).json({ message, error: error.message });
+    }
+  },
+
     login: async (req, res) => {
       try {
         const { email, password } = req.body;

@@ -1,9 +1,66 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
+const { OAuth2Client } = require('google-auth-library');
 
 const emailService = require('../utils/emailService');
 const crypto = require('crypto');
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+const formatUserResponse = (user) => ({
+  id: user.id,
+  username: user.username,
+  email: user.email,
+  firstName: user.firstName,
+  lastName: user.lastName,
+  profileImage: user.profileImage,
+  about: user.about,
+  link: user.link,
+});
+
+const buildTokens = (user) => {
+  const accessToken = jwt.sign(
+    { userId: user.id, username: user.username },
+    process.env.JWT_SECRET,
+    { expiresIn: '15min' }
+  );
+
+  const refreshToken = jwt.sign(
+    { userId: user.id, username: user.username },
+    process.env.JWT_REFRESH_SECRET,
+    { expiresIn: '7d' }
+  );
+
+  return { accessToken, refreshToken };
+};
+
+const generateBaseUsername = (email, firstName, lastName) => {
+  const preferredUsername = [firstName, lastName].filter(Boolean).join('').trim();
+  const fallbackUsername = (email || '').split('@')[0];
+  const rawUsername = preferredUsername || fallbackUsername || 'user';
+
+  return rawUsername.toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 20) || 'user';
+};
+
+const generateUniqueUsername = async (connection, email, firstName, lastName) => {
+  const baseUsername = generateBaseUsername(email, firstName, lastName);
+  
+  for (let suffix = 0; suffix <= 3; suffix++) {
+    const username = suffix === 0 ? baseUsername : `${baseUsername}${suffix}`;
+    
+    const [rows] = await connection.query(
+      'SELECT id FROM users WHERE username = ?', 
+      [username]
+    );
+    
+    if (rows.length === 0) {
+      return username;
+    }
+  }
+  
+  return `${baseUsername}${Date.now()}`.slice(0, 24);
+};
 
 const authService = {
   async signup(username, email, password, firstName, lastName) {
@@ -88,17 +145,7 @@ const authService = {
         throw { status: 401, message: 'Invalid email or password' };
       }
 
-      const accessToken = jwt.sign(
-        { userId: user.id, username: user.username },
-        process.env.JWT_SECRET,
-        { expiresIn: '15min' }
-      );
-
-      const refreshToken = jwt.sign(
-        { userId: user.id, username: user.username },
-        process.env.JWT_REFRESH_SECRET,
-        { expiresIn: '7d' }
-      );
+      const { accessToken, refreshToken } = buildTokens(user);
 
       await connection.query(
         'UPDATE users SET refresh_token = ? WHERE id = ?',
@@ -106,14 +153,7 @@ const authService = {
       );
 
       return {
-        foundUser: {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          profileImage: user.profileImage
-        },
+        foundUser: formatUserResponse(user),
         accessToken,
         refreshToken
       };
@@ -206,6 +246,102 @@ const authService = {
         [userId]
       );
       return { message: 'Logged out successfully' };
+    } finally {
+      if (connection) connection.release();
+    }
+  },
+
+  async googleLogin(credential) {
+    if (!credential) {
+      throw { status: 400, message: 'Google credential is required' };
+    }
+
+    if (!process.env.GOOGLE_CLIENT_ID) {
+      throw { status: 500, message: 'Google client ID is not configured' };
+    }
+
+    let payload;
+    try {
+      const ticket = await googleClient.verifyIdToken({
+        idToken: credential,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+      payload = ticket.getPayload();
+    } catch (error) {
+      throw { status: 401, message: 'Invalid Google credential' };
+    }
+
+    if (!payload?.email || !payload.email_verified) {
+      throw { status: 401, message: 'Google account email is not verified' };
+    }
+
+    const email = payload.email;
+    const firstName = payload.given_name || '';
+    const lastName = payload.family_name || '';
+    const profileImage = payload.picture || null;
+
+    let connection;
+    try {
+      connection = await pool.getConnection();
+
+      const [existingUsers] = await connection.query(
+        'SELECT id, username, email, firstName, lastName, profileImage, about, link FROM users WHERE email = ?',
+        [email]
+      );
+
+      let user = existingUsers[0];
+
+      if (!user) {
+        const username = await generateUniqueUsername(connection, email, firstName, lastName);
+        const placeholderPassword = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12);
+
+        await connection.query(
+          'INSERT INTO users (username, email, password, firstName, lastName, profileImage) VALUES (?, ?, ?, ?, ?, ?)',
+          [username, email, placeholderPassword, firstName, lastName, profileImage]
+        );
+
+        const [createdUsers] = await connection.query(
+          'SELECT id, username, email, firstName, lastName, profileImage, about, link FROM users WHERE email = ?',
+          [email]
+        );
+
+        user = createdUsers[0];
+      } else {
+        const nextFirstName = user.firstName || firstName;
+        const nextLastName = user.lastName || lastName;
+        const nextProfileImage = user.profileImage || profileImage;
+
+        if (
+          nextFirstName !== user.firstName ||
+          nextLastName !== user.lastName ||
+          nextProfileImage !== user.profileImage
+        ) {
+          await connection.query(
+            'UPDATE users SET firstName = ?, lastName = ?, profileImage = ? WHERE id = ?',
+            [nextFirstName, nextLastName, nextProfileImage, user.id]
+          );
+
+          user = {
+            ...user,
+            firstName: nextFirstName,
+            lastName: nextLastName,
+            profileImage: nextProfileImage,
+          };
+        }
+      }
+
+      const { accessToken, refreshToken } = buildTokens(user);
+
+      await connection.query(
+        'UPDATE users SET refresh_token = ? WHERE id = ?',
+        [refreshToken, user.id]
+      );
+
+      return {
+        foundUser: formatUserResponse(user),
+        accessToken,
+        refreshToken,
+      };
     } finally {
       if (connection) connection.release();
     }

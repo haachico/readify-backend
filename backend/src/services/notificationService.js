@@ -2,6 +2,17 @@ const pool = require('../config/db');
 
 const notificationService = {
 
+  async getUnreadCountByUserId(userId) {
+    const [rows] = await pool.query(
+      `SELECT COUNT(*) AS unreadCount
+       FROM notifications
+       WHERE userId = ? AND isRead = 0`,
+      [userId]
+    );
+
+    return rows[0]?.unreadCount || 0;
+  },
+
   async getNotificationsByUserId(userId, limit = 50) {
     const [rows] = await pool.query(
       `SELECT n.*, u.username AS sourceUsername, u.profileImage AS sourceProfileImage
