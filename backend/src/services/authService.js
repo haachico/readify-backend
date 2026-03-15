@@ -17,7 +17,17 @@ const formatUserResponse = (user) => ({
   profileImage: user.profileImage,
   about: user.about,
   link: user.link,
+  followings: user.followings || [],
 });
+
+const getFollowingIds = async (connection, userId) => {
+  const [rows] = await connection.query(
+    'SELECT followingId FROM follows WHERE followerId = ?',
+    [userId]
+  );
+
+  return rows.map((row) => row.followingId);
+};
 
 const buildTokens = (user) => {
   const accessToken = jwt.sign(
@@ -130,7 +140,7 @@ const authService = {
       connection = await pool.getConnection();
 
       const [users] = await connection.query(
-        'SELECT id, username, profileImage, email, password, firstName, lastName FROM users WHERE email = ?',
+        'SELECT id, username, profileImage, email, password, firstName, lastName, about, link FROM users WHERE email = ?',
         [email]
       );
 
@@ -152,8 +162,10 @@ const authService = {
         [refreshToken, user.id]
       );
 
+      const followings = await getFollowingIds(connection, user.id);
+
       return {
-        foundUser: formatUserResponse(user),
+        foundUser: formatUserResponse({ ...user, followings }),
         accessToken,
         refreshToken
       };
@@ -337,8 +349,10 @@ const authService = {
         [refreshToken, user.id]
       );
 
+      const followings = await getFollowingIds(connection, user.id);
+
       return {
-        foundUser: formatUserResponse(user),
+        foundUser: formatUserResponse({ ...user, followings }),
         accessToken,
         refreshToken,
       };
