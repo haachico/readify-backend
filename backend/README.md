@@ -133,7 +133,7 @@ POST   /api/auth/login               # Login with email & password
 POST   /api/auth/google              # OAuth login
 POST   /api/auth/logout              # Logout (blacklist token)
 POST   /api/auth/refresh-token       # Get new access token
-POST   /api/auth/forgot-password     # Send reset email
+POST   /api/auth/forgot-password     # Send password reset email
 POST   /api/auth/reset-password      # Reset password with token
 ```
 
@@ -164,7 +164,7 @@ POST   /api/posts/remove-bookmark/:postId  # Remove bookmark (auth)
 POST   /api/comments/posts/:postId/comments          # Add comment (auth)
 GET    /api/comments/posts/:postId/comments          # Get comments (auth)
 DELETE /api/comments/posts/:postId/comments/:commentId  # Delete comment (auth)
-POST   /api/comments/comments/:commentId/replies     # Add reply (auth)
+POST   /api/comments/:commentId/replies              # Add reply to comment (auth)
 ```
 
 ### Notifications
@@ -181,9 +181,9 @@ POST   /api/notifications/:id/read             # Mark single as read (auth)
 ```
 GET    /api/users                    # Get all users
 GET    /api/users/:username          # Get user by username
-GET    /api/users/search             # Search users
-POST   /api/users/follow             # Follow user (auth)
-POST   /api/users/updateProfile      # Update profile (auth)
+GET    /api/users/search             # Search users by username
+POST   /api/users/follow             # Follow/Unfollow user (auth)
+POST   /api/users/updateProfile      # Update user profile (auth)
 GET    /api/users/getFollowers/:userId       # Get followers list (auth)
 GET    /api/users/getFollowing/:userId       # Get following list (auth)
 ```
@@ -247,20 +247,27 @@ GET    /api/users/getFollowing/:userId       # Get following list (auth)
 
 ## 🔔 Notification System
 
-### Trigger Events
+### Notification Triggers
 
-- **Like**: User likes another user's post
-- **Comment**: User comments on post
-- **Reply**: User replies to comment
-- **Follow**: User follows another user
-- **Bookmark**: User bookmarks post
+Notifications are automatically created for:
 
-### Real-time Features
+- **Like**: When someone likes your post
+- **Comment**: When someone comments on your post
+- **Reply**: When someone replies to your comment
+- **Bookmark**: When someone bookmarks your post
+
+### Notification Features
+
+- ✅ Unread count tracking
+- ✅ Mark single notification as read
+- ✅ Mark all notifications as read
+- ✅ Retrieve notification history
+- ✅ Store in MySQL (persistent)
+
+### Real-time Features (Future)
 
 - WebSocket support (can be added)
-- Unread count tracking
-- Mark as read functionality
-- Email notifications (future feature)
+- Email notifications (can be added)
 
 ---
 
@@ -464,22 +471,5 @@ This project is private. All rights reserved.
 - **Frontend**: React.js
 - **Backend**: Node.js + Express
 - **Database**: MySQL + Redis
-
----
-
-## 🆘 Support
-
-For issues or questions:
-
-1. Check error logs: `SELECT * FROM logs WHERE level='ERROR'`
-2. Check console: `npm start` (see server logs)
-3. Check database: Verify tables exist & have data
-4. Check credentials: Verify .env variables are correct
-
----
-
-## 📞 API Documentation
-
-Full API docs available at: `https://your-github-repo/wiki/API-Documentation`
 
 Last Updated: March 2026
