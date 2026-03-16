@@ -86,7 +86,9 @@ const notificationRoutes = require('./src/routes/notificationRoutes');
 const { startCronJobs } = require('./src/config/cron');
 app.use('/api/notifications', notificationRoutes);
 
+const aiRoutes = require('./src/routes/aiRoutes');
 
+app.use('/api/ai', aiRoutes);
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
