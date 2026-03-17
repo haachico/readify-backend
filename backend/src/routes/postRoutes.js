@@ -63,6 +63,8 @@ router.post(
   rateLimitMiddleware,
   handleLikeDislike,
 );
+
+
 router.get("/:postId", authMiddleware, getPostDetailsById);
 
 module.exports = router;

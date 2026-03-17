@@ -27,4 +27,25 @@ const improvePostText = async (postText) => {
   }
 };
 
-module.exports = { improvePostText };
+
+const validateBookContent = async(postText) => {
+    try {
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+      const prompt = `Is this post about books, reading, authors, book recommendations, or related to books/literature? 
+      Reply with ONLY one word: YES or NO
+      
+      "${postText}"`;
+
+      const result = await model.generateContent(prompt);
+      const response = result.response.text().trim().toUpperCase();
+
+      return response === "YES";
+    }
+    catch(error){
+      console.error("AI Service Error:", error);
+      throw error;
+    }
+}
+
+module.exports = { improvePostText, validateBookContent };
