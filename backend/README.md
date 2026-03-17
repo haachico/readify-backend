@@ -188,6 +188,13 @@ GET    /api/users/getFollowers/:userId       # Get followers list (auth)
 GET    /api/users/getFollowing/:userId       # Get following list (auth)
 ```
 
+### AI Features
+
+```
+POST   /api/ai/improve-post          # Improve post text using Gemini AI (auth)
+POST   /api/ai/validate-post         # Validate if post is book-related (auth)
+```
+
 ---
 
 ## 🗄️ Database Schema
@@ -281,6 +288,60 @@ Notifications are automatically created for:
 - **Input Validation** - Request data validation
 - **Email Verification** - For password reset
 - **Error Logging** - Track all errors & activities
+
+---
+
+## 🤖 AI Features (Google Gemini)
+
+### Post Improvement
+
+```
+POST /api/ai/improve-post
+Body: { "text": "user's post content" }
+Response: { "improvedText": "enhanced post text" }
+```
+
+- Uses Gemini 2.5 Flash model
+- Makes posts more engaging & compelling
+- Preserves original meaning
+- Returns improved text for display
+
+### Post Validation
+
+```
+POST /api/ai/validate-post
+Body: { "text": "user's post content" }
+Response: { "isBookRelated": true/false }
+```
+
+- Validates if post is book-related
+- Returns YES/NO based on Gemini analysis
+- Prevents non-book content from being posted
+- Keeps community focused on books & reading
+
+### How It Works
+
+1. **Improvement Flow**
+   - User writes post
+   - Frontend calls `/api/ai/improve-post`
+   - Gemini enhances the text
+   - Improved version shown to user
+   - User can accept or edit further
+
+2. **Validation Flow**
+   - User submits post
+   - Frontend calls `/api/ai/validate-post`
+   - Gemini checks if book-related
+   - If YES → Post allowed
+   - If NO → Error message, post rejected
+
+### Configuration
+
+```env
+AI_API_KEY=your_google_gemini_api_key
+```
+
+Get from: [Google AI Studio](https://aistudio.google.com/)
 
 ---
 
