@@ -22,12 +22,10 @@ const userController = {
     } catch (error) {
       console.error("Get user by username error:", error);
       const status = error.status || 500;
-      res
-        .status(status)
-        .json({
-          message: error.message || "Server error fetching user",
-          error: error.message,
-        });
+      res.status(status).json({
+        message: error.message || "Server error fetching user",
+        error: error.message,
+      });
     }
   },
 
@@ -38,12 +36,10 @@ const userController = {
       res.status(200).json(result);
     } catch (error) {
       console.error("Search users error:", error);
-      res
-        .status(500)
-        .json({
-          message: "Server error searching users",
-          error: error.message,
-        });
+      res.status(500).json({
+        message: "Server error searching users",
+        error: error.message,
+      });
     }
   },
 
@@ -72,12 +68,10 @@ const userController = {
         status,
         error,
       );
-      res
-        .status(status)
-        .json({
-          message: error.message || "Server error during follow user",
-          error: error.message,
-        });
+      res.status(status).json({
+        message: error.message || "Server error during follow user",
+        error: error.message,
+      });
     }
   },
 
@@ -85,9 +79,12 @@ const userController = {
     try {
       const userId = req.auth.userId;
       const { profileImage, about, link } = req.body;
+      const profileImg = req.file ? req.file.imageUrl : null;
+
+      console.log(profileImage, "profile image");
       const result = await userService.updateProfile(
         userId,
-        profileImage,
+        profileImg,
         about,
         link,
       );
@@ -110,12 +107,10 @@ const userController = {
         500,
         error,
       );
-      res
-        .status(500)
-        .json({
-          message: "Server error updating profile",
-          error: error.message,
-        });
+      res.status(500).json({
+        message: "Server error updating profile",
+        error: error.message,
+      });
     }
   },
 
@@ -126,12 +121,10 @@ const userController = {
       res.status(200).json(result);
     } catch (error) {
       console.error("Get followers list error:", error);
-      res
-        .status(500)
-        .json({
-          message: "Server error fetching followers list",
-          error: error.message,
-        });
+      res.status(500).json({
+        message: "Server error fetching followers list",
+        error: error.message,
+      });
     }
   },
 
@@ -142,12 +135,10 @@ const userController = {
       res.status(200).json(result);
     } catch (error) {
       console.error("Get followings list error:", error);
-      res
-        .status(500)
-        .json({
-          message: "Server error fetching followings list",
-          error: error.message,
-        });
+      res.status(500).json({
+        message: "Server error fetching followings list",
+        error: error.message,
+      });
     }
   },
 };

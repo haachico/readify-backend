@@ -12,12 +12,22 @@ const {
   getFollowingsList,
 } = require("../controllers/userController");
 const authMiddleware = require("../middleware/authMiddleware");
+const {
+  uploadToImageKit,
+  upload,
+} = require("../middleware/imagekitMiddleware");
 
 router.get("/", getAllUsers);
 router.post("/follow", authMiddleware, followUser);
 router.get("/search", searchUsers);
 router.get("/:username", getUserByUsername);
-router.post("/updateProfile", authMiddleware, updateProfile);
+router.post(
+  "/updateProfile",
+  authMiddleware,
+  upload.single("profileImage"),
+  uploadToImageKit,
+  updateProfile,
+);
 router.get("/getFollowers/:userId", authMiddleware, getFollowersList);
 router.get("/getFollowing/:userId", authMiddleware, getFollowingsList);
 

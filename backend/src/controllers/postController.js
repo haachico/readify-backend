@@ -21,12 +21,10 @@ const postController = {
 
       res.status(200).json(result);
     } catch (error) {
-      res
-        .status(500)
-        .json({
-          message: "Server error fetching post details",
-          error: error.message,
-        });
+      res.status(500).json({
+        message: "Server error fetching post details",
+        error: error.message,
+      });
     }
   },
 
@@ -37,12 +35,10 @@ const postController = {
       res.status(200).json(result);
     } catch (error) {
       console.error("Get posts by user ID error:", error);
-      res
-        .status(500)
-        .json({
-          message: "Server error fetching posts by user ID",
-          error: error.message,
-        });
+      res.status(500).json({
+        message: "Server error fetching posts by user ID",
+        error: error.message,
+      });
     }
   },
 
@@ -52,12 +48,10 @@ const postController = {
       res.status(200).json(result);
     } catch (error) {
       console.error("Get trending posts error:", error);
-      res
-        .status(500)
-        .json({
-          message: "Server error fetching trending posts",
-          error: error.message,
-        });
+      res.status(500).json({
+        message: "Server error fetching trending posts",
+        error: error.message,
+      });
     }
   },
 
@@ -69,12 +63,10 @@ const postController = {
       res.status(200).json(result);
     } catch (error) {
       console.error("Get feed posts error:", error);
-      res
-        .status(500)
-        .json({
-          message: "Server error fetching feed posts",
-          error: error.message,
-        });
+      res.status(500).json({
+        message: "Server error fetching feed posts",
+        error: error.message,
+      });
     }
   },
 
@@ -85,12 +77,10 @@ const postController = {
       res.status(200).json(result);
     } catch (error) {
       console.error("Get bookmarked posts error:", error);
-      res
-        .status(500)
-        .json({
-          message: "Server error fetching bookmarked posts",
-          error: error.message,
-        });
+      res.status(500).json({
+        message: "Server error fetching bookmarked posts",
+        error: error.message,
+      });
     }
   },
 
@@ -135,6 +125,7 @@ const postController = {
       const { postId } = req.params;
       const { content } = req.body;
       const imgContent = req.file ? req.file.imageUrl : null;
+
       const userId = req.auth.userId;
       const result = await postService.editPost(
         postId,
@@ -146,12 +137,10 @@ const postController = {
     } catch (error) {
       console.error("Edit post error:", error);
       const status = error.status || 500;
-      res
-        .status(status)
-        .json({
-          message: error.message || "Server error editing post",
-          error: error.message,
-        });
+      res.status(status).json({
+        message: error.message || "Server error editing post",
+        error: error.message,
+      });
     }
   },
 
@@ -179,12 +168,10 @@ const postController = {
         500,
         error,
       );
-      res
-        .status(500)
-        .json({
-          message: "Server error bookmarking post",
-          error: error.message,
-        });
+      res.status(500).json({
+        message: "Server error bookmarking post",
+        error: error.message,
+      });
     }
   },
 
@@ -212,12 +199,10 @@ const postController = {
         500,
         error,
       );
-      res
-        .status(500)
-        .json({
-          message: "Server error removing bookmark",
-          error: error.message,
-        });
+      res.status(500).json({
+        message: "Server error removing bookmark",
+        error: error.message,
+      });
     }
   },
 
@@ -246,12 +231,10 @@ const postController = {
         status,
         error,
       );
-      res
-        .status(status)
-        .json({
-          message: error.message || "Server error deleting post",
-          error: error.message,
-        });
+      res.status(status).json({
+        message: error.message || "Server error deleting post",
+        error: error.message,
+      });
     }
   },
 
@@ -263,12 +246,10 @@ const postController = {
       res.status(200).json(result);
     } catch (error) {
       console.error("Like/Dislike post error:", error);
-      res
-        .status(500)
-        .json({
-          message: "Server error handling like/dislike",
-          error: error.message,
-        });
+      res.status(500).json({
+        message: "Server error handling like/dislike",
+        error: error.message,
+      });
     }
   },
 };
