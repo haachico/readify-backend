@@ -61,10 +61,20 @@ const redisClient = require("../config/redis");
 // }
 
 const postService = {
-  async getAllPosts() {
+  async getAllPosts(page, limit) {
     let connection;
     try {
       connection = await pool.getConnection();
+
+      let parsedPage = parseInt(page);
+      let parsedLimit = parseInt(limit);
+      let offset = (parsedPage - 1) * parsedLimit;
+
+      const [countRows] = await connection.query(
+        `SELECT COUNT(*) as totalCount FROM posts`
+      );
+      const totalCount = countRows[0]?.totalCount || 0;
+      const totalPages = Math.ceil(totalCount / parsedLimit);
 
       const [posts] = await connection.query(
         `SELECT p.id, p.content, p.imageUrl, p.userId, p.likeCount, p.createdAt, p.updatedAt, u.username, u.firstName, u.lastName, u.email, u.profileImage,
@@ -73,7 +83,9 @@ const postService = {
         LEFT JOIN users as u ON p.userId = u.id
         LEFT JOIN likes as l ON l.postId = p.id
         GROUP BY p.id
-        ORDER BY p.createdAt DESC`,
+        ORDER BY p.createdAt DESC
+        LIMIT ? OFFSET ?`,
+        [parsedLimit, offset]
       );
 
       const postsWithLikes = posts.map((post) => ({
@@ -96,6 +108,10 @@ const postService = {
       return {
         message: "Posts fetched successfully",
         posts: postsWithLikes,
+        totalCount,
+        totalPages,
+        currentPage: parsedPage,
+        pageSize: parsedLimit
       };
     } finally {
       if (connection) connection.release();
@@ -205,9 +221,13 @@ const postService = {
     }
   },
 
-  async getTrendingPosts() {
+  async getTrendingPosts(page, limit) {
     let connection;
     try {
+
+        const parsedPage = parseInt(page, 10);
+      const parsedLimit = parseInt(limit, 10);
+      const offset = (parsedPage - 1) * parsedLimit;
       const cachedKey = "trending:posts";
 
       const cachedPosts = await redisClient.get(cachedKey);
@@ -227,8 +247,16 @@ const postService = {
         LEFT JOIN users as u ON p.userId = u.id
         LEFT JOIN likes as l ON l.postId = p.id
         GROUP BY p.id
-        ORDER BY p.likeCount DESC, p.createdAt DESC`,
+        ORDER BY p.likeCount DESC, p.createdAt DESC
+        LIMIT ? OFFSET ?`,
+        [parsedLimit, offset],
       );
+
+      const [countRows] = await connection.query(
+        `SELECT COUNT(*) as totalCount FROM posts`
+      );
+      const totalCount = countRows[0]?.totalCount || 0;
+      const totalPages = Math.ceil(totalCount / parsedLimit);
 
       const postsWithLikes = posts.map((post) => ({
         _id: post.id,
@@ -254,17 +282,23 @@ const postService = {
       return {
         message: "Trending posts fetched successfully",
         posts: postsWithLikes,
+        totalCount,
+        totalPages,
+        currentPage: parsedPage,
+        pageSize: parsedLimit
       };
     } finally {
       if (connection) connection.release();
     }
   },
 
-  async getFeedPosts(userId, sort = "oldest") {
+  async getFeedPosts(userId, page = 1, limit = 5, sort = "oldest") {
     let connection;
     try {
       connection = await pool.getConnection();
-
+      const parsedPage = parseInt(page, 10);
+      const parsedLimit = parseInt(limit, 10);
+      const offset = (parsedPage - 1) * parsedLimit;
       let orderBy = "p.createdAt ASC";
       if (sort === "latest") {
         orderBy = "p.createdAt DESC";
@@ -286,9 +320,21 @@ const postService = {
             SELECT followingId FROM follows WHERE followerId = ?
         )
         GROUP BY p.id
-        ORDER BY ${orderBy}`,
-        [userId, userId, userId],
+        ORDER BY ${orderBy}
+        LIMIT ? OFFSET ?
+        `,
+        [userId, userId, userId, parsedLimit, offset],
       );
+      const [countRows] = await connection.query(
+        `SELECT COUNT(*) as totalCount 
+        FROM posts p
+        WHERE p.userId = ? OR p.userId IN (
+          SELECT followingId FROM follows WHERE followerId = ?
+        )`,
+        [userId, userId]  
+      );
+      const totalCount = countRows[0]?.totalCount || 0;
+      const totalPages = Math.ceil(totalCount / parsedLimit);
 
       const postsWithLikes = posts.map((post) => ({
         _id: post.id,
@@ -312,16 +358,25 @@ const postService = {
       return {
         message: "Feed posts fetched successfully",
         posts: postsWithLikes,
+        totalCount,
+        totalPages,
+        currentPage: parsedPage,
+        pageSize: parsedLimit
       };
     } finally {
       if (connection) connection.release();
     }
   },
 
-  async getBookmarkedPosts(userId) {
+  async getBookmarkedPosts(userId, page, limit) {
     let connection;
     try {
       const cachedKey = `bookmarks:${userId}`;
+
+      const parsedPage = parseInt(page);
+      const parsedLimit = parseInt(limit)
+
+      const offset = (parsedPage - 1) * parsedLimit;
 
       const cachedPosts = await redisClient.get(cachedKey);
 
@@ -343,9 +398,19 @@ const postService = {
         LEFT JOIN comments as c ON c.postId = p.id
         WHERE b.userId = ?
         GROUP BY p.id
-        ORDER BY b.createdAt DESC`,
-        [userId, userId],
+        ORDER BY b.createdAt DESC
+        LIMIT ? OFFSET ?`,
+        [userId, userId, parsedLimit, offset],
       );
+
+      const [countRows] = await connection.query(
+        `SELECT COUNT(*) from posts as p
+        INNER JOIN bookmarks b ON p.id = b.postId AND b.userId = ?
+        WHERE b.userId = ?`,
+        [userId, userId]
+      );
+      const totalCount = countRows[0]?.totalCount || 0;
+      const totalPages = Math.ceil(totalCount / parsedLimit);
 
       const postsWithLikes = posts.map((post) => ({
         _id: post.id,
@@ -372,6 +437,10 @@ const postService = {
       return {
         message: "Bookmarked posts fetched successfully",
         posts: postsWithLikes,
+        totalCount,
+        totalPages,
+        currentPage: parsedPage,
+        pageSize: parsedLimit 
       };
     } finally {
       if (connection) connection.release();

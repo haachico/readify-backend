@@ -3,8 +3,9 @@ const Logger = require("../utils/logger");
 
 const postController = {
   getAllPosts: async (req, res) => {
+    const { page, limit } = req.query;
     try {
-      const result = await postService.getAllPosts();
+      const result = await postService.getAllPosts(page, limit);
       res.status(200).json(result);
     } catch (error) {
       console.error("Get all posts error:", error);
@@ -44,7 +45,9 @@ const postController = {
 
   getTrendingPosts: async (req, res) => {
     try {
-      const result = await postService.getTrendingPosts();
+
+      const { page, limit } = req.query;
+      const result = await postService.getTrendingPosts(page, limit);
       res.status(200).json(result);
     } catch (error) {
       console.error("Get trending posts error:", error);
@@ -58,8 +61,8 @@ const postController = {
   getFeedPosts: async (req, res) => {
     try {
       const userId = req.auth.userId;
-      const { sort } = req.query;
-      const result = await postService.getFeedPosts(userId, sort);
+      const { page, limit, sort } = req.query;
+      const result = await postService.getFeedPosts(userId, page, limit, sort);
       res.status(200).json(result);
     } catch (error) {
       console.error("Get feed posts error:", error);
@@ -73,7 +76,8 @@ const postController = {
   getBookmarkedPosts: async (req, res) => {
     try {
       const userId = req.auth.userId;
-      const result = await postService.getBookmarkedPosts(userId);
+      const { page, limit } = req.query;
+      const result = await postService.getBookmarkedPosts(userId, page, limit);
       res.status(200).json(result);
     } catch (error) {
       console.error("Get bookmarked posts error:", error);
