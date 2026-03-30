@@ -4,8 +4,10 @@ const Logger = require("../utils/logger");
 const postController = {
   getAllPosts: async (req, res) => {
     const { page, limit } = req.query;
+    
+    const userId = req.auth.userId;
     try {
-      const result = await postService.getAllPosts(page, limit);
+      const result = await postService.getAllPosts(userId, page, limit);
       res.status(200).json(result);
     } catch (error) {
       console.error("Get all posts error:", error);
@@ -47,7 +49,8 @@ const postController = {
     try {
 
       const { page, limit } = req.query;
-      const result = await postService.getTrendingPosts(page, limit);
+      const userId = req.auth.userId;
+      const result = await postService.getTrendingPosts(userId, page, limit);
       res.status(200).json(result);
     } catch (error) {
       console.error("Get trending posts error:", error);

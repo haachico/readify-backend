@@ -22,7 +22,7 @@ const {
   uploadToImageKit,
 } = require("../middleware/imagekitMiddleware");
 
-router.get("/", getAllPosts);
+router.get("/", authMiddleware, getAllPosts);
 router.get("/feed", authMiddleware, getFeedPosts);
 router.post(
   "/",
@@ -41,7 +41,7 @@ router.post(
   uploadToImageKit,
   editPost,
 );
-router.get("/trending", getTrendingPosts);
+router.get("/trending", authMiddleware, getTrendingPosts);
 router.get("/bookmarks", authMiddleware, getBookmarkedPosts);
 router.get("/bookmarks", authMiddleware, getBookmarkedPosts);
 router.post(

@@ -61,32 +61,276 @@ const redisClient = require("../config/redis");
 // }
 
 const postService = {
-  async getAllPosts(page, limit) {
+
+
+async getAllPosts(userId, page, limit) {
+  let connection;
+  try {
+    connection = await pool.getConnection();
+
+    let parsedPage = parseInt(page);
+    let parsedLimit = parseInt(limit);
+    let offset = (parsedPage - 1) * parsedLimit;
+
+    const [countRows] = await connection.query(
+      `SELECT COUNT(*) as totalCount FROM posts`
+    );
+    const totalCount = countRows[0]?.totalCount || 0;
+    const totalPages = Math.ceil(totalCount / parsedLimit);
+
+    const [posts] = await connection.query(
+      `SELECT p.id, p.content, p.imageUrl, p.userId, p.likeCount, p.createdAt, p.updatedAt, u.username, u.firstName, u.lastName, u.email, u.profileImage, 
+      CASE WHEN b.id IS NOT NULL THEN 1 ELSE 0 END as isBookmarked,
+      GROUP_CONCAT(DISTINCT l.userId) AS likedBy, 
+      COUNT(DISTINCT c.id) as commentCount
+      FROM posts as p
+      LEFT JOIN users as u ON p.userId = u.id
+      LEFT JOIN likes as l ON l.postId = p.id
+      LEFT JOIN bookmarks as b on b.postId = p.id AND b.userId = ?
+      LEFT JOIN comments as c on c.postId = p.id
+      GROUP BY p.id
+      ORDER BY p.createdAt DESC
+      LIMIT ? OFFSET ?`,
+      [userId, parsedLimit, offset]
+    );
+
+    const postsWithLikes = posts.map((post) => ({
+      _id: post.id,
+      content: post.content,
+      imgContent: post.imageUrl,
+      username: post.username,
+      firstName: post.firstName,
+      lastName: post.lastName,
+      email: post.email,
+      image: post.profileImage,
+      commentCount: post.commentCount,
+      likes: {
+        likeCount: post.likeCount,
+        likedBy: post.likedBy ? post.likedBy.split(",").map(Number) : [],
+      },
+      isBookmarked: post.isBookmarked === 1,
+      createdAt: post.createdAt,
+      updatedAt: post.updatedAt,
+    }));
+
+    return {
+      message: "Posts fetched successfully",
+      posts: postsWithLikes,
+      totalCount,
+      totalPages,
+      currentPage: parsedPage,
+      pageSize: parsedLimit
+    };
+  } finally {
+    if (connection) connection.release();
+  }
+},
+
+async getTrendingPosts(userId, page, limit) {
+  let connection;
+  try {
+    const parsedPage = parseInt(page, 10) || 1;
+    const parsedLimit = parseInt(limit, 10) || 5;
+    const offset = (parsedPage - 1) * parsedLimit;
+
+    const cachedKey = `trending:posts:user:${userId}:page:${parsedPage}`;
+    const cachedData = await redisClient.get(cachedKey);
+    if (cachedData) {
+      return JSON.parse(cachedData);
+    }
+
+    connection = await pool.getConnection();
+
+    const [countRows] = await connection.query(
+      `SELECT COUNT(*) as totalCount FROM posts`
+    );
+    const totalCount = countRows[0]?.totalCount || 0;
+    const totalPages = Math.ceil(totalCount / parsedLimit);
+
+    const [posts] = await connection.query(
+      `SELECT p.id, p.content, p.imageUrl, p.userId, p.likeCount, p.createdAt, p.updatedAt, 
+              u.username, u.firstName, u.lastName, u.email, u.profileImage,
+              CASE WHEN b.id IS NOT NULL THEN 1 ELSE 0 END as isBookmarked,
+              GROUP_CONCAT(DISTINCT l.userId) AS likedBy,
+              COUNT(DISTINCT c.id) as commentCount
+       FROM posts p
+       LEFT JOIN users u ON p.userId = u.id
+       LEFT JOIN bookmarks b ON p.id = b.postId AND b.userId = ?
+       LEFT JOIN likes l ON l.postId = p.id
+       LEFT JOIN comments c ON c.postId = p.id
+       GROUP BY p.id
+       ORDER BY p.likeCount DESC, p.createdAt DESC
+       LIMIT ? OFFSET ?`,
+      [userId, parsedLimit, offset]
+    );
+
+    const postsWithDetails = posts.map((post) => ({
+      _id: post.id,
+      content: post.content,
+      imgContent: post.imageUrl,
+      username: post.username,
+      firstName: post.firstName,
+      lastName: post.lastName,
+      email: post.email,
+      image: post.profileImage,
+      likes: {
+        likeCount: post.likeCount,
+        likedBy: post.likedBy ? post.likedBy.split(",").map(Number) : [],
+      },
+      commentCount: post.commentCount,
+      createdAt: post.createdAt,
+      updatedAt: post.updatedAt,
+      isBookmarked: post.isBookmarked === 1,
+    }));
+
+    const responseData = {
+      message: "Trending posts fetched successfully",
+      posts: postsWithDetails,
+      pagination: {
+        currentPage: parsedPage,
+        totalPages: totalPages,
+        totalPosts: totalCount,
+        limit: parsedLimit,
+        hasNextPage: parsedPage < totalPages,
+        hasPrevPage: parsedPage > 1
+      }
+    };
+
+    await redisClient.set(cachedKey, JSON.stringify(responseData), {
+      EX: 600,
+    });
+
+    console.log(`✓ Cached trending posts for user ${userId} page ${parsedPage}`);
+
+    return responseData;
+  } catch (error) {
+    console.error("Error fetching trending posts:", error);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+},
+
+async getFeedPosts(userId, page = 1, limit = 5, sort = "oldest") {
+  let connection;
+  try {
+    connection = await pool.getConnection();
+    const parsedPage = parseInt(page, 10);
+    const parsedLimit = parseInt(limit, 10);
+    const offset = (parsedPage - 1) * parsedLimit;
+    let orderBy = "p.createdAt ASC";
+    if (sort === "latest") {
+      orderBy = "p.createdAt DESC";
+    }
+    if (sort === "trending") {
+      orderBy = "p.likeCount DESC";
+    }
+
+    const [posts] = await connection.query(
+      `SELECT p.id, p.content, p.imageUrl, p.userId, p.likeCount, p.createdAt, p.updatedAt, u.username, u.firstName, u.lastName, u.email, u.profileImage, 
+      COUNT(DISTINCT c.id) as commentCount,
+      CASE WHEN b.id IS NOT NULL THEN 1 ELSE 0 END as isBookmarked,
+      GROUP_CONCAT(DISTINCT l.userId) AS likedBy
+      FROM posts p
+      LEFT JOIN users u ON p.userId = u.id
+      LEFT JOIN bookmarks b ON p.id = b.postId AND b.userId = ?
+      LEFT JOIN likes as l ON l.postId = p.id
+      LEFT JOIN comments as c ON c.postId = p.id
+      WHERE p.userId = ? OR p.userId IN (
+          SELECT followingId FROM follows WHERE followerId = ?
+      )
+      GROUP BY p.id
+      ORDER BY ${orderBy}
+      LIMIT ? OFFSET ?
+      `,
+      [userId, userId, userId, parsedLimit, offset]
+    );
+    const [countRows] = await connection.query(
+      `SELECT COUNT(*) as totalCount 
+      FROM posts p
+      WHERE p.userId = ? OR p.userId IN (
+        SELECT followingId FROM follows WHERE followerId = ?
+      )`,
+      [userId, userId]  
+    );
+    const totalCount = countRows[0]?.totalCount || 0;
+    const totalPages = Math.ceil(totalCount / parsedLimit);
+
+    const postsWithLikes = posts.map((post) => ({
+      _id: post.id,
+      content: post.content,
+      imgContent: post.imageUrl,
+      username: post.username,
+      firstName: post.firstName,
+      lastName: post.lastName,
+      email: post.email,
+      image: post.profileImage,
+      likes: {
+        likeCount: post.likeCount,
+        likedBy: post.likedBy ? post.likedBy.split(",").map(Number) : [],
+      },
+      commentCount: post.commentCount,
+      createdAt: post.createdAt,
+      updatedAt: post.updatedAt,
+      isBookmarked: post.isBookmarked === 1,
+    }));
+
+    return {
+      message: "Feed posts fetched successfully",
+      posts: postsWithLikes,
+      totalCount,
+      totalPages,
+      currentPage: parsedPage,
+      pageSize: parsedLimit
+    };
+  } finally {
+    if (connection) connection.release();
+  }
+},
+
+  async getBookmarkedPosts(userId, page, limit) {
     let connection;
     try {
+      const cachedKey = `bookmarks:${userId}`;
+
+      const parsedPage = parseInt(page);
+      const parsedLimit = parseInt(limit)
+
+      const offset = (parsedPage - 1) * parsedLimit;
+
+      const cachedPosts = await redisClient.get(cachedKey);
+
+      if (cachedPosts) {
+        return {
+          message: "Bookmarked posts fetched successfully (from cache)",
+          posts: JSON.parse(cachedPosts),
+        };
+      }
       connection = await pool.getConnection();
 
-      let parsedPage = parseInt(page);
-      let parsedLimit = parseInt(limit);
-      let offset = (parsedPage - 1) * parsedLimit;
+      const [posts] = await connection.query(
+        `SELECT p.id, p.content, p.imageUrl, p.userId, p.likeCount, p.createdAt, p.updatedAt, u.username, u.firstName, u.lastName, u.email, u.profileImage, 
+        GROUP_CONCAT(DISTINCT l.userId) AS likedBy , 1 as isBookmarked, count(DISTINCT c.id) as commentCount
+        FROM posts p
+        INNER JOIN bookmarks b ON p.id = b.postId AND b.userId = ?
+        LEFT JOIN users u ON p.userId = u.id
+        LEFT JOIN likes as l ON l.postId = p.id
+        LEFT JOIN comments as c ON c.postId = p.id
+        WHERE b.userId = ?
+        GROUP BY p.id
+        ORDER BY b.createdAt DESC
+        LIMIT ? OFFSET ?`,
+        [userId, userId, parsedLimit, offset],
+      );
 
       const [countRows] = await connection.query(
-        `SELECT COUNT(*) as totalCount FROM posts`
+        `SELECT COUNT(*) from posts as p
+        INNER JOIN bookmarks b ON p.id = b.postId AND b.userId = ?
+        WHERE b.userId = ?`,
+        [userId, userId]
       );
       const totalCount = countRows[0]?.totalCount || 0;
       const totalPages = Math.ceil(totalCount / parsedLimit);
-
-      const [posts] = await connection.query(
-        `SELECT p.id, p.content, p.imageUrl, p.userId, p.likeCount, p.createdAt, p.updatedAt, u.username, u.firstName, u.lastName, u.email, u.profileImage,
-        GROUP_CONCAT(l.userId) AS likedBy
-        FROM posts as p
-        LEFT JOIN users as u ON p.userId = u.id
-        LEFT JOIN likes as l ON l.postId = p.id
-        GROUP BY p.id
-        ORDER BY p.createdAt DESC
-        LIMIT ? OFFSET ?`,
-        [parsedLimit, offset]
-      );
 
       const postsWithLikes = posts.map((post) => ({
         _id: post.id,
@@ -97,6 +341,8 @@ const postService = {
         lastName: post.lastName,
         email: post.email,
         image: post.profileImage,
+        isBookmarked: post.isBookmarked === 1,
+        commentCount: post.commentCount,
         likes: {
           likeCount: post.likeCount,
           likedBy: post.likedBy ? post.likedBy.split(",").map(Number) : [],
@@ -105,20 +351,23 @@ const postService = {
         updatedAt: post.updatedAt,
       }));
 
+      await redisClient.set(cachedKey, JSON.stringify(postsWithLikes), {
+        EX: 600,
+      });
       return {
-        message: "Posts fetched successfully",
+        message: "Bookmarked posts fetched successfully",
         posts: postsWithLikes,
         totalCount,
         totalPages,
         currentPage: parsedPage,
-        pageSize: parsedLimit
+        pageSize: parsedLimit 
       };
     } finally {
       if (connection) connection.release();
     }
   },
 
-  async getPostById(postId) {
+    async getPostById(postId) {
     let connection;
     try {
       connection = await pool.getConnection();
@@ -215,232 +464,6 @@ const postService = {
       return {
         message: "Posts fetched successfully",
         posts: postsWithLikes,
-      };
-    } finally {
-      if (connection) connection.release();
-    }
-  },
-
-  async getTrendingPosts(page, limit) {
-    let connection;
-    try {
-
-        const parsedPage = parseInt(page, 10);
-      const parsedLimit = parseInt(limit, 10);
-      const offset = (parsedPage - 1) * parsedLimit;
-      const cachedKey = "trending:posts";
-
-      const cachedPosts = await redisClient.get(cachedKey);
-
-      if (cachedPosts) {
-        return {
-          message: "Trending posts fetched successfully (from cache)",
-          posts: JSON.parse(cachedPosts),
-        };
-      }
-      connection = await pool.getConnection();
-
-      const [posts] = await connection.query(
-        `SELECT p.id, p.content, p.imageUrl, p.userId, p.likeCount, p.createdAt, p.updatedAt, u.username, u.firstName, u.lastName, u.email, u.profileImage,
-        GROUP_CONCAT(l.userId) AS likedBy
-        FROM posts as p
-        LEFT JOIN users as u ON p.userId = u.id
-        LEFT JOIN likes as l ON l.postId = p.id
-        GROUP BY p.id
-        ORDER BY p.likeCount DESC, p.createdAt DESC
-        LIMIT ? OFFSET ?`,
-        [parsedLimit, offset],
-      );
-
-      const [countRows] = await connection.query(
-        `SELECT COUNT(*) as totalCount FROM posts`
-      );
-      const totalCount = countRows[0]?.totalCount || 0;
-      const totalPages = Math.ceil(totalCount / parsedLimit);
-
-      const postsWithLikes = posts.map((post) => ({
-        _id: post.id,
-        content: post.content,
-        imgContent: post.imageUrl,
-        username: post.username,
-        firstName: post.firstName,
-        lastName: post.lastName,
-        email: post.email,
-        image: post.profileImage,
-        likes: {
-          likeCount: post.likeCount,
-          likedBy: post.likedBy ? post.likedBy.split(",").map(Number) : [],
-        },
-        createdAt: post.createdAt,
-        updatedAt: post.updatedAt,
-      }));
-
-      await redisClient.set(cachedKey, JSON.stringify(postsWithLikes), {
-        EX: 600,
-      });
-      console.log("✓ Cached trending posts for 10 minutes");
-      return {
-        message: "Trending posts fetched successfully",
-        posts: postsWithLikes,
-        totalCount,
-        totalPages,
-        currentPage: parsedPage,
-        pageSize: parsedLimit
-      };
-    } finally {
-      if (connection) connection.release();
-    }
-  },
-
-  async getFeedPosts(userId, page = 1, limit = 5, sort = "oldest") {
-    let connection;
-    try {
-      connection = await pool.getConnection();
-      const parsedPage = parseInt(page, 10);
-      const parsedLimit = parseInt(limit, 10);
-      const offset = (parsedPage - 1) * parsedLimit;
-      let orderBy = "p.createdAt ASC";
-      if (sort === "latest") {
-        orderBy = "p.createdAt DESC";
-      }
-      if (sort === "trending") {
-        orderBy = "p.likeCount DESC";
-      }
-
-      const [posts] = await connection.query(
-        `SELECT p.id, p.content, p.imageUrl, p.userId, p.likeCount, p.createdAt, p.updatedAt, u.username, u.firstName, u.lastName, u.email, u.profileImage, count(c.id) as commentCount,
-        case when b.id is not null then 1 else 0 end as isBookmarked,
-        GROUP_CONCAT(l.userId) AS likedBy
-        FROM posts p
-        LEFT JOIN users u ON p.userId = u.id
-        LEFT JOIN bookmarks b ON p.id = b.postId AND b.userId = ?
-        LEFT JOIN likes as l ON l.postId = p.id
-        LEFT JOIN comments as c ON c.postId = p.id
-        WHERE p.userId = ? OR p.userId IN (
-            SELECT followingId FROM follows WHERE followerId = ?
-        )
-        GROUP BY p.id
-        ORDER BY ${orderBy}
-        LIMIT ? OFFSET ?
-        `,
-        [userId, userId, userId, parsedLimit, offset],
-      );
-      const [countRows] = await connection.query(
-        `SELECT COUNT(*) as totalCount 
-        FROM posts p
-        WHERE p.userId = ? OR p.userId IN (
-          SELECT followingId FROM follows WHERE followerId = ?
-        )`,
-        [userId, userId]  
-      );
-      const totalCount = countRows[0]?.totalCount || 0;
-      const totalPages = Math.ceil(totalCount / parsedLimit);
-
-      const postsWithLikes = posts.map((post) => ({
-        _id: post.id,
-        content: post.content,
-        imgContent: post.imageUrl,
-        username: post.username,
-        firstName: post.firstName,
-        lastName: post.lastName,
-        email: post.email,
-        image: post.profileImage,
-        likes: {
-          likeCount: post.likeCount,
-          likedBy: post.likedBy ? post.likedBy.split(",").map(Number) : [],
-        },
-        commentCount: post.commentCount,
-        createdAt: post.createdAt,
-        updatedAt: post.updatedAt,
-        isBookmarked: post.isBookmarked === 1,
-      }));
-
-      return {
-        message: "Feed posts fetched successfully",
-        posts: postsWithLikes,
-        totalCount,
-        totalPages,
-        currentPage: parsedPage,
-        pageSize: parsedLimit
-      };
-    } finally {
-      if (connection) connection.release();
-    }
-  },
-
-  async getBookmarkedPosts(userId, page, limit) {
-    let connection;
-    try {
-      const cachedKey = `bookmarks:${userId}`;
-
-      const parsedPage = parseInt(page);
-      const parsedLimit = parseInt(limit)
-
-      const offset = (parsedPage - 1) * parsedLimit;
-
-      const cachedPosts = await redisClient.get(cachedKey);
-
-      if (cachedPosts) {
-        return {
-          message: "Bookmarked posts fetched successfully (from cache)",
-          posts: JSON.parse(cachedPosts),
-        };
-      }
-      connection = await pool.getConnection();
-
-      const [posts] = await connection.query(
-        `SELECT p.id, p.content, p.imageUrl, p.userId, p.likeCount, p.createdAt, p.updatedAt, u.username, u.firstName, u.lastName, u.email, u.profileImage, 
-        GROUP_CONCAT(l.userId) AS likedBy , 1 as isBookmarked, count(c.id) as commentCount
-        FROM posts p
-        INNER JOIN bookmarks b ON p.id = b.postId AND b.userId = ?
-        LEFT JOIN users u ON p.userId = u.id
-        LEFT JOIN likes as l ON l.postId = p.id
-        LEFT JOIN comments as c ON c.postId = p.id
-        WHERE b.userId = ?
-        GROUP BY p.id
-        ORDER BY b.createdAt DESC
-        LIMIT ? OFFSET ?`,
-        [userId, userId, parsedLimit, offset],
-      );
-
-      const [countRows] = await connection.query(
-        `SELECT COUNT(*) from posts as p
-        INNER JOIN bookmarks b ON p.id = b.postId AND b.userId = ?
-        WHERE b.userId = ?`,
-        [userId, userId]
-      );
-      const totalCount = countRows[0]?.totalCount || 0;
-      const totalPages = Math.ceil(totalCount / parsedLimit);
-
-      const postsWithLikes = posts.map((post) => ({
-        _id: post.id,
-        content: post.content,
-        imgContent: post.imageUrl,
-        username: post.username,
-        firstName: post.firstName,
-        lastName: post.lastName,
-        email: post.email,
-        image: post.profileImage,
-        isBookmarked: post.isBookmarked === 1,
-        commentCount: post.commentCount,
-        likes: {
-          likeCount: post.likeCount,
-          likedBy: post.likedBy ? post.likedBy.split(",").map(Number) : [],
-        },
-        createdAt: post.createdAt,
-        updatedAt: post.updatedAt,
-      }));
-
-      await redisClient.set(cachedKey, JSON.stringify(postsWithLikes), {
-        EX: 600,
-      });
-      return {
-        message: "Bookmarked posts fetched successfully",
-        posts: postsWithLikes,
-        totalCount,
-        totalPages,
-        currentPage: parsedPage,
-        pageSize: parsedLimit 
       };
     } finally {
       if (connection) connection.release();
