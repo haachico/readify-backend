@@ -8,6 +8,7 @@ const buildCommentTree  = (comments)=> {
     let roots = [];
     let map = {};
 
+
     comments.forEach(comment => {
       comment.replies = [];
       map[comment.id] = comment;  
@@ -26,7 +27,10 @@ const buildCommentTree  = (comments)=> {
         }
     })
 
-    return roots;
+    return {
+        comments: roots,
+        totalComments: comments.length
+    };
 }
 
 async function addComment({ postId, userId, content, parentCommentId = null }) {
