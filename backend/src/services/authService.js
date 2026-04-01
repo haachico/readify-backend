@@ -4,6 +4,7 @@ const pool = require('../config/db');
 const { OAuth2Client } = require('google-auth-library');
 
 const emailService = require('../utils/emailService');
+const emailQueue = require('../queues/emailQueue');
 const crypto = require('crypto');
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -389,10 +390,17 @@ async forgotPassword(email) {
       [resetToken, expiryTime, email]
     );
 
-    // Send email
-    await emailService.sendResetEmail(email, resetToken, users[0].firstName);
+    // Enqueue email job (background)
+    await emailQueue.add({
+      type: 'resetPassword',
+      data: {
+        email,
+        resetToken,
+        firstName: users[0].firstName
+      }
+    });
 
-    return { message: 'Reset email sent successfully' };
+    return { message: 'Reset email is being sent' };
   } finally {
     if (connection) connection.release();
   }

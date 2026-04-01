@@ -17,13 +17,17 @@ const authMiddleware = async (req, res, next) => {
         // Extract token without 'Bearer ' prefix
         const cleanToken = token.startsWith('Bearer ') ? token.slice(7) : token;
 
+
         // Check if token is blacklisted (user logged out)
-        const isBlacklisted = await redisClient.get(`blacklist:${cleanToken}`);
-        if (isBlacklisted) {
-            return res.status(401).json({ message: 'Token has been revoked. Please login again' });
-        }
+        // const isBlacklisted = await redisClient.get(`blacklist:${cleanToken}`);
+
+        // console.log(isBlacklisted, "debug blacklist check in auth middleware")
+        // if (isBlacklisted) {
+        //     return res.status(401).json({ message: 'Token has been revoked. Please login again' });
+        // }
 
         const decoded = jwt.verify(cleanToken, process.env.JWT_SECRET);
+
 
         req.auth = decoded;
         next();
