@@ -1,12 +1,8 @@
 const Bull = require('bull');
+require('dotenv').config();
 
 // Create a queue for email jobs
-const emailQueue = new Bull('email-queue', {
-  redis: {
-    host: process.env.REDIS_HOST || '127.0.0.1',
-    port: process.env.REDIS_PORT || 6379,
-    password: process.env.REDIS_PASSWORD || undefined,
-  },
-});
+const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
+const emailQueue = new Bull('email-queue', redisUrl);
 
 module.exports = emailQueue;
