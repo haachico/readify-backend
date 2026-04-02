@@ -53,6 +53,7 @@ const {
   userRoutes,
   notificationRoutes,
   aiRoutes,
+  coverLetterRoutes,
 } = require("./src/routes");
 
 app.use("/api/auth", authRoutes);
@@ -61,6 +62,7 @@ app.use("/api", commentRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/ai", aiRoutes);
+app.use("/api", coverLetterRoutes);
 
 const { startCronJobs } = require("./src/config/cron");
 

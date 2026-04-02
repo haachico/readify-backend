@@ -6,4 +6,5 @@ module.exports = {
   userRoutes: require("./userRoutes"),
   notificationRoutes: require("./notificationRoutes"),
   aiRoutes: require("./aiRoutes"),
+  coverLetterRoutes: require("./coverLetterRoutes"),
 };
