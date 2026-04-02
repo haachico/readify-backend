@@ -1,29 +1,32 @@
 const emailService = require("../utils/emailService");
+require("dotenv").config();
 
 // Hardcoded cover letter template
-const COVER_LETTER_TEMPLATE = `Dear Hiring Manager,
+const COVER_LETTER_TEMPLATE = `Hi,
 
-I am writing to express my strong interest in the {positionName} position at {companyName}. With my comprehensive experience in full-stack web development, combined with my passion for creating scalable and user-centric applications, I am confident in my ability to contribute significantly to your team.
+I hope you're doing well.
 
-Throughout my professional journey, I have demonstrated expertise in modern web technologies including React.js, Node.js, Express, and MySQL. I have successfully developed and deployed multiple applications that have improved user engagement and operational efficiency. My experience spans across the entire development lifecycle, from conceptualization and design to implementation, testing, and deployment.
+I'm writing to express my interest in the {positionName} opportunity at {companyName}. I'm keen to apply for the role and be considered for your team.
 
-Key Strengths:
-• Full-stack development proficiency (Frontend: React, HTML5, CSS3, JavaScript; Backend: Node.js, Express)
-• Database design and optimization with MySQL and Redis
-• RESTful API design and implementation
-• Responsive and user-friendly UI/UX design
-• Version control with Git and collaborative development
-• Problem-solving and analytical thinking
-• Quick learner and adaptable to new technologies
+I have 2+ years of professional experience in software development. In my current company, I work on the frontend using React, JavaScript, and TypeScript, building and maintaining user-facing features. On the backend, I work with PHP, handling APIs, business logic, and database interactions, along with MySQL for writing queries and managing data.
 
-I am particularly drawn to {companyName} because of your innovative approach and commitment to excellence. I am excited about the opportunity to contribute my skills and grow with your organization. I am confident that my technical abilities, combined with my dedication and work ethic, make me an ideal candidate for this position.
+Alongside my professional work, I've built backend projects using Node.js and Express, where I developed REST APIs and handled authentication and database operations.
 
-Thank you for considering my application. I look forward to discussing how I can contribute to {companyName}'s continued success.
+I'm comfortable working across the stack and would value the opportunity to contribute and grow in a MERN-focused role.
 
-Sincerely,
-Nilesh Kokare
-nileshnkokare@gmail.com
-+91 XXXXX XXXXX`;
+I've attached my resume for your review. I would appreciate the opportunity to discuss this further.
+
+Thank you for your time and consideration.
+
+Best regards,
+
+${process.env.SENDER_NAME || "Nilesh Kokare"}
+
+${process.env.SENDER_PHONE || "9653227842"}
+
+${process.env.SENDER_EMAIL || "nile10kokare@gmail.com"}
+
+LinkedIn: https://www.linkedin.com/in/nilesh-kokare-92461b231/ | GitHub: https://github.com/haachico | Codewars: https://www.codewars.com/users/haachico`;
 
 const coverLetterController = {
   async sendCoverLetter(req, res) {
