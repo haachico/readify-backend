@@ -39,12 +39,13 @@ const emailService = {
     }
   },
  
-  async sendEmail(to, subject, html) {
+  async sendEmail(to, subject, html, attachments = []) {
     const mailOptions = {
       from: process.env.EMAIL_FROM,
       to,
       subject,
-      html
+      html,
+      attachments
     };
     try {
       await transporter.sendMail(mailOptions);
