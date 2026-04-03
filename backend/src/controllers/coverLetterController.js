@@ -72,17 +72,24 @@ const coverLetterController = {
       `;
 
       // Prepare resume attachment (if exists)
-      let attachments = [];
-      if (fs.existsSync(RESUME_PATH)) {
-        attachments = [
-          {
-            filename: "resume.pdf",
-            path: RESUME_PATH
-          }
-        ];
-      } else {
-        console.warn(`Resume not found at: ${RESUME_PATH}`);
-      }
+      // let attachments = [];
+      // if (fs.existsSync(RESUME_PATH)) {
+      //   attachments = [
+      //     {
+      //       filename: "resume.pdf",
+      //       path: RESUME_PATH
+      //     }
+      //   ];
+      // } else {
+      //   console.warn(`Resume not found at: ${RESUME_PATH}`);
+      // }
+
+      const attachments = [
+        {
+          filename: "nileshSoftwareDev_cv.pdf",
+          path: "https://ik.imagekit.io/0hvcvrxkp/nileshSoftwareDev_cv.pdf"
+        }
+      ];
 
       await emailService.sendEmail(
         recipientEmail,
