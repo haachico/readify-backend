@@ -25,12 +25,20 @@ const coverLetterController = {
             "Missing required fields: recipientEmail, companyName, positionName",
         });
       }
+      
 
       // Validate email format
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(recipientEmail)) {
         return res.status(400).json({ message: "Invalid email format" });
       }
+
+
+      const userId = req.auth.userId;
+      
+
+      //i will put a check here if user is me then only allow to send cover letter otherwise return error
+       
 
         const htmlContent = `
           <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.8; color: #2c3e50; max-width: 650px; margin: 0 auto;">
