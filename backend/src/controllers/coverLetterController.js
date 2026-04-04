@@ -36,7 +36,8 @@ const coverLetterController = {
 
       const userId = req.auth.userId;
       
-      if(userId !== process.env.ADMIN_USER_ID) {
+
+      if(userId !== parseInt(process.env.ADMIN_USER_ID)) {
         return res.status(403).json({ message: "Forbidden: You are not authorized to send cover letters." });
       }
       
