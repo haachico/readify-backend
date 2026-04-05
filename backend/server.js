@@ -10,7 +10,6 @@ const REQUIRED_ENVS = [
   'MYSQL_HOST',
   'MYSQL_USER',
   'MYSQL_PASSWORD',
-  'MYSQL_PORT',
   'JWT_SECRET',
   'JWT_REFRESH_SECRET',
   'REDIS_URL',
@@ -120,12 +119,7 @@ app.use((err, req, res, next) => {
   console.error(`   Status: ${statusCode}`);
   if (isDevelopment) console.error(`   Stack: ${err.stack}`);
 
-  // Safe to show: Client errors (4xx) - validation, auth, not found
-  // Unsafe to show: Server errors (5xx) - database, internal errors
-  const isSafeError = statusCode < 500;
-  const message = (isDevelopment || isSafeError) 
-    ? err.message 
-    : 'Internal Server Error';
+  const message = isDevelopment ? err.message : 'Internal Server Error';
   
   res.status(statusCode).json({
     error: err.name || 'Error',
