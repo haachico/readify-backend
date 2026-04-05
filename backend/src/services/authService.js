@@ -390,15 +390,26 @@ async forgotPassword(email) {
       [resetToken, expiryTime, email]
     );
 
-    // Enqueue email job (background)
-    await emailQueue.add({
-      type: 'resetPassword',
-      data: {
-        email,
-        resetToken,
-        firstName: users[0].firstName
+    // Enqueue email job (background) with retry mechanism
+    await emailQueue.add(
+      {
+        type: 'resetPassword',
+        data: {
+          email,
+          resetToken,
+          firstName: users[0].firstName
+        }
+      },
+      {
+        attempts: 3,  // Retry 3 times if fails
+        backoff: {
+          type: 'exponential',
+          delay: 2000  // Start with 2 seconds, then 4s, then 8s
+        },
+        removeOnComplete: true,  // Remove job after success
+        removeOnFail: false      // Keep failed jobs for debugging
       }
-    });
+    );
 
     return { message: 'Reset email is being sent' };
   } finally {

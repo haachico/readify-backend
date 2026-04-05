@@ -5,27 +5,37 @@ const emailQueue = require('./emailQueue');
 emailQueue.process(async (job) => {
   try {
     const { type, data } = job.data;
-    console.log(`Processing email job: ${type}`, data);
+    const attempt = job.attemptsMade + 1;
+    console.log(`[Attempt ${attempt}/3] Processing email job: ${type}`, data);
     
     if (type === 'resetPassword') {
       const { email, resetToken, firstName } = data;
       await emailService.sendResetEmail(email, resetToken, firstName);
-      console.log(`Reset email sent successfully to ${email}`);
+      console.log(`✅ Reset email sent successfully to ${email}`);
     }
   } catch (error) {
-    console.error('Email job error:', error.message);
-    throw error; // Rethrow to mark job as failed
+    const attempt = job.attemptsMade + 1;
+    console.error(`❌ [Attempt ${attempt}/3] Email job error:`, error.message);
+    throw error; // Rethrow to trigger retry or mark as failed
   }
 });
 
-// Handle job failures
+// Handle job failures (after all retries exhausted)
 emailQueue.on('failed', (job, error) => {
-  console.error(`Job ${job.id} failed:`, error.message);
+  console.error(`❌ Job ${job.id} FAILED after all retries:`, error.message);
+  console.error(`   Email: ${job.data.data.email}`);
 });
 
 // Handle job completions
 emailQueue.on('completed', (job) => {
-  console.log(`Job ${job.id} completed successfully`);
+  console.log(`✅ Job ${job.id} completed successfully`);
+});
+
+// Handle job retries
+emailQueue.on('failed', (job, error) => {
+  if (job.attemptsMade < job.opts.attempts) {
+    console.warn(`⚠️ Job ${job.id} failed, retrying... (${job.attemptsMade}/${job.opts.attempts})`);
+  }
 });
 
 console.log('Email queue worker started');

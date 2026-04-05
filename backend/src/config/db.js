@@ -6,7 +6,7 @@ const pool = mysql.createPool({
   port: process.env.MYSQL_PORT || 3306,
   user: process.env.MYSQL_USER || 'root',
   password: process.env.MYSQL_PASSWORD || '',
-  database: process.env.MYSQL_DATABASE || 'readify',
+  database: process.env.MYSQL_DATABASE || process.env.MYSQL_NAME || 'readify',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
