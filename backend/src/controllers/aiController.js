@@ -18,7 +18,8 @@ const improvePost = async (req, res) => {
     res.status(200).json({ improvedText });
   } catch (error) {
     console.error("Controller Error:", error);
-    res.status(500).json({ error: "Failed to improve post" });
+    const status = error.status || 500;
+    res.status(status).json({ error: "Failed to improve post" });
   }
   
 };
@@ -39,7 +40,8 @@ const validatePost = async(req, res)=> {
   }
   catch(error){
     console.error("Validation Error:", error);
-    res.status(500).json({ error: "Failed to validate post" });
+    const status = error.status || 500;
+    res.status(status).json({ error: "Failed to validate post" });
   }
 }
 

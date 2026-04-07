@@ -11,8 +11,9 @@ const postController = {
       res.status(200).json(result);
     } catch (error) {
       console.error("Get all posts error:", error);
+      const status = error.status || 500;
       res
-        .status(500)
+        .status(status)
         .json({ message: "Server error fetching posts", error: error.message });
     }
   },
@@ -24,7 +25,8 @@ const postController = {
 
       res.status(200).json(result);
     } catch (error) {
-      res.status(500).json({
+      const status = error.status || 500;
+      res.status(status).json({
         message: "Server error fetching post details",
         error: error.message,
       });
@@ -38,7 +40,8 @@ const postController = {
       res.status(200).json(result);
     } catch (error) {
       console.error("Get posts by user ID error:", error);
-      res.status(500).json({
+      const status = error.status || 500;
+      res.status(status).json({
         message: "Server error fetching posts by user ID",
         error: error.message,
       });
@@ -54,7 +57,8 @@ const postController = {
       res.status(200).json(result);
     } catch (error) {
       console.error("Get trending posts error:", error);
-      res.status(500).json({
+      const status = error.status || 500;
+      res.status(status).json({
         message: "Server error fetching trending posts",
         error: error.message,
       });
@@ -69,7 +73,8 @@ const postController = {
       res.status(200).json(result);
     } catch (error) {
       console.error("Get feed posts error:", error);
-      res.status(500).json({
+      const status = error.status || 500;
+      res.status(status).json({
         message: "Server error fetching feed posts",
         error: error.message,
       });
@@ -84,7 +89,8 @@ const postController = {
       res.status(200).json(result);
     } catch (error) {
       console.error("Get bookmarked posts error:", error);
-      res.status(500).json({
+      const status = error.status || 500;
+      res.status(status).json({
         message: "Server error fetching bookmarked posts",
         error: error.message,
       });
@@ -114,16 +120,17 @@ const postController = {
       res.status(201).json(result);
     } catch (error) {
       console.error("Create post error:", error);
+      const status = error.status || 500;
       await Logger.logError(
         `Failed to create post`,
         `/api/posts`,
         "POST",
         req.ipAddress,
-        500,
+        status,
         error,
       );
       res
-        .status(500)
+        .status(status)
         .json({ message: "Server error creating post", error: error.message });
     }
   },
@@ -168,15 +175,16 @@ const postController = {
       res.status(200).json(result);
     } catch (error) {
       console.error("Bookmark post error:", error);
+      const status = error.status || 500;
       await Logger.logError(
         `Failed to bookmark post`,
         `/api/posts/:postId/bookmark`,
         "POST",
         req.ipAddress,
-        500,
+        status,
         error,
       );
-      res.status(500).json({
+      res.status(status).json({
         message: "Server error bookmarking post",
         error: error.message,
       });
@@ -199,17 +207,21 @@ const postController = {
       res.status(200).json(result);
     } catch (error) {
       console.error("Remove bookmark error:", error);
+      const status = error.status || 500;
       await Logger.logError(
         `Failed to remove bookmark`,
         `/api/posts/:postId/bookmark`,
         "DELETE",
         req.ipAddress,
-        500,
+        status,
         error,
       );
-      res.status(500).json({
+      res.status(status).json({
         message: "Server error removing bookmark",
         error: error.message,
+
+
+        
       });
     }
   },
@@ -254,7 +266,8 @@ const postController = {
       res.status(200).json(result);
     } catch (error) {
       console.error("Like/Dislike post error:", error);
-      res.status(500).json({
+      const status = error.status || 500;
+      res.status(status).json({
         message: "Server error handling like/dislike",
         error: error.message,
       });

@@ -34,15 +34,16 @@ const commentController = {
     res.status(201).json({ message: 'Comment added', comment });
   } catch (error) {
     console.error('Error adding comment:', error);
+    const status = error.status || 500;
     await Logger.logError(
       `Failed to add comment`,
       `/api/posts/:postId/comments`,
       'POST',
       req.ipAddress,
-      500,
+      status,
       error
     );
-    res.status(500).json({ message: 'Server error adding comment', error: error.message });
+    res.status(status).json({ message: 'Server error adding comment', error: error.message });
   }
 },
 
@@ -70,15 +71,16 @@ addAReply : async (req, res) => {
     res.status(201).json({ message: 'Reply added', reply });
   }
   catch(error ){
+    const status = error.status || 500;
     await Logger.logError(
       `Failed to add reply`,
       `/api/comments/:commentId/reply`,
       'POST',
       req.ipAddress,
-      500,
+      status,
       error
     );
-    res.status(500).json({ message: 'Server error adding reply', error: error.message });
+    res.status(status).json({ message: 'Server error adding reply', error: error.message });
   }
 
 },
@@ -90,7 +92,8 @@ addAReply : async (req, res) => {
          res.status(200).json(comments);
     }
     catch(error){
-       res.status(500).json({ message: 'Server error fetching comments', error: error.message }); 
+       const status = error.status || 500;
+       res.status(status).json({ message: 'Server error fetching comments', error: error.message }); 
     }
  } ,
 

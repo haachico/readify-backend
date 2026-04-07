@@ -18,15 +18,16 @@ const getUnreadCount = async (req, res) => {
     );
     res.json({ unreadCount });
   } catch (err) {
+    const status = err.status || 500;
     await Logger.logError(
       `Failed to fetch unread notification count`,
       `/api/notifications/unread-count`,
       'GET',
       req.ipAddress,
-      500,
+      status,
       err
     );
-    res.status(500).json({ message: 'Error fetching unread count', error: err.message });
+    res.status(status).json({ message: 'Error fetching unread count', error: err.message });
   }
 };
 
@@ -44,15 +45,16 @@ const getNotifications = async (req, res) => {
     );
     res.json({ notifications });
   } catch (err) {
+    const status = err.status || 500;
     await Logger.logError(
       `Failed to fetch notifications`,
       `/api/notifications`,
       'GET',
       req.ipAddress,
-      500,
+      status,
       err
     );
-    res.status(500).json({ message: 'Error fetching notifications', error: err.message });
+    res.status(status).json({ message: 'Error fetching notifications', error: err.message });
   }
 };
 
@@ -70,15 +72,16 @@ const markNotificationsAsRead = async (req, res) => {
     );
     res.json(result);
   } catch (err) {
+    const status = err.status || 500;
     await Logger.logError(
       `Failed to mark notifications as read`,
       `/api/notifications/mark-read`,
       'PUT',
       req.ipAddress,
-      500,
+      status,
       err
     );
-    res.status(500).json({ message: 'Error marking notifications as read', error: err.message });
+    res.status(status).json({ message: 'Error marking notifications as read', error: err.message });
   }
 };
 

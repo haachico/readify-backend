@@ -8,8 +8,9 @@ const userController = {
       res.status(200).json(result);
     } catch (error) {
       console.error("Get all users error:", error);
+      const status = error.status || 500;
       res
-        .status(500)
+        .status(status)
         .json({ message: "Server error fetching users", error: error.message });
     }
   },
@@ -36,7 +37,8 @@ const userController = {
       res.status(200).json(result);
     } catch (error) {
       console.error("Search users error:", error);
-      res.status(500).json({
+      const status = error.status || 500;
+      res.status(status).json({
         message: "Server error searching users",
         error: error.message,
       });
@@ -99,15 +101,16 @@ const userController = {
       res.status(200).json(result);
     } catch (error) {
       console.error("Update profile error:", error);
+      const status = error.status || 500;
       await Logger.logError(
         `Failed to update profile`,
         `/api/users/profile`,
         "PUT",
         req.ipAddress,
-        500,
+        status,
         error,
       );
-      res.status(500).json({
+      res.status(status).json({
         message: "Server error updating profile",
         error: error.message,
       });
@@ -121,7 +124,8 @@ const userController = {
       res.status(200).json(result);
     } catch (error) {
       console.error("Get followers list error:", error);
-      res.status(500).json({
+      const status = error.status || 500;
+      res.status(status).json({
         message: "Server error fetching followers list",
         error: error.message,
       });
@@ -135,7 +139,8 @@ const userController = {
       res.status(200).json(result);
     } catch (error) {
       console.error("Get followings list error:", error);
-      res.status(500).json({
+      const status = error.status || 500;
+      res.status(status).json({
         message: "Server error fetching followings list",
         error: error.message,
       });
