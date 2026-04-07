@@ -49,7 +49,7 @@ const coverLetterController = {
           <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.8; color: #2c3e50; max-width: 650px; margin: 0 auto;">
             <p style="margin: 0 0 20px 0; font-size: 15px;">Dear Hiring Team,</p>
             
-            <p style="margin: 0 0 18px 0; font-size: 15px;">I'm excited to apply for the <strong>${positionName}</strong> position at <strong>${companyName}</strong>. With <strong>2+ years of full-stack development experience</strong>, I'm confident I can deliver immediate value to your team.</p>
+            <p style="margin: 0 0 18px 0; font-size: 15px;">I'm excited to apply for the <strong>${positionName}</strong> position at <strong>${companyName}</strong>. With <strong>2+ years of Software Development experience</strong>, I'm confident I can deliver immediate value to your team.</p>
             
             <p style="margin: 0 0 18px 0; font-size: 15px;">My technical expertise spans:</p>
             <ul style="margin: 0 0 18px 20px; padding: 0; font-size: 15px;">
