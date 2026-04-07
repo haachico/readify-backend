@@ -101,6 +101,7 @@ async getAllPosts(userId, page, limit) {
       username: post.username,
       firstName: post.firstName,
       lastName: post.lastName,
+      // we wil not share email in response for security purpose
       email: post.email,
       image: post.profileImage,
       commentCount: post.commentCount,
@@ -171,6 +172,7 @@ async getTrendingPosts(userId, page, limit) {
       username: post.username,
       firstName: post.firstName,
       lastName: post.lastName,
+      // we wil not share email in response for security purpose
       email: post.email,
       image: post.profileImage,
       likes: {
@@ -263,6 +265,7 @@ async getFeedPosts(userId, page = 1, limit = 5, sort = "oldest") {
       username: post.username,
       firstName: post.firstName,
       lastName: post.lastName,
+      // we wil not share email in response for security purpose
       email: post.email,
       image: post.profileImage,
       likes: {
@@ -339,6 +342,7 @@ async getFeedPosts(userId, page = 1, limit = 5, sort = "oldest") {
         username: post.username,
         firstName: post.firstName,
         lastName: post.lastName,
+        // we wil not share email in response for security purpose
         email: post.email,
         image: post.profileImage,
         isBookmarked: post.isBookmarked === 1,
@@ -397,6 +401,7 @@ async getFeedPosts(userId, page = 1, limit = 5, sort = "oldest") {
         username: post.username,
         firstName: post.firstName,
         lastName: post.lastName,
+        // we wil not share email in response for security purpose
         email: post.email,
         image: post.profileImage,
         likes: {
@@ -452,6 +457,7 @@ async getFeedPosts(userId, page = 1, limit = 5, sort = "oldest") {
         username: post.username,
         firstName: post.firstName,
         lastName: post.lastName,
+        // we wil not share email in response for security purpose
         email: post.email,
         image: post.profileImage,
         likes: {
@@ -510,6 +516,7 @@ async getFeedPosts(userId, page = 1, limit = 5, sort = "oldest") {
         username: post.username,
         firstName: post.firstName,
         lastName: post.lastName,
+        // we wil not share email in response for security purpose
         email: post.email,
         image: post.profileImage,
         likes: {
@@ -522,6 +529,7 @@ async getFeedPosts(userId, page = 1, limit = 5, sort = "oldest") {
 
       return {
         message: "Post created successfully",
+        //just noting that here we will send a sinlge obj instead of an obj in arr
         posts: postsWithLikes,
       };
     } finally {

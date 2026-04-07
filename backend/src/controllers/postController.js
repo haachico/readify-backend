@@ -93,14 +93,15 @@ const postController = {
 
   createPost: async (req, res) => {
     try {
-      console.log("===== CREATE POST DEBUG =====");
-      console.log("req.file:", req.file);
-      console.log("req.body:", req.body);
-      console.log("req.headers content-type:", req.headers["content-type"]);
-      console.log("=============================");
+     
       const { content } = req.body;
+      if (!content || content.trim().length === 0) {
+        throw { status: 400, message: 'Content cannot be empty' };
+      }
       const imgContent = req.file ? req.file.imageUrl : null;
       const userId = req.auth.userId;
+
+
       const result = await postService.createPost(content, imgContent, userId);
       await Logger.logInfo(
         `User created post`,
