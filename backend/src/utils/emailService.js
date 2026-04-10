@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const Logger = require('./logger');
 require('dotenv').config();
 
 const transporter = nodemailer.createTransport({
@@ -30,11 +31,32 @@ const emailService = {
 
     try {
       await transporter.sendMail(mailOptions);
-      console.log('✅ Email sent successfully to:', email);
+      console.log('Email sent successfully to:', email);
+      
+      // Log success
+      await Logger.logInfo(
+        `Password reset email sent to ${email}`,
+        '/email-service',
+        'SEND_EMAIL',
+        'system',
+        200,
+        { recipient: email }
+      );
+      
       return { success: true };
     } catch (error) {
-      console.error('❌ Email send error:', error.message);
+      console.error('Email send error:', error.message);
       console.error('Error details:', error);
+      
+      await Logger.logError(
+        `Failed to send password reset email to ${email}`,
+        '/email-service',
+        'SEND_EMAIL',
+        'system',
+        500,
+        error
+      );
+      
       throw { status: 500, message: 'Failed to send reset email: ' + error.message };
     }
   },
@@ -49,11 +71,32 @@ const emailService = {
     };
     try {
       await transporter.sendMail(mailOptions);
-      console.log('✅ Email sent successfully to:', to);
+      console.log('Email sent successfully to:', to);
+      
+      // Log success
+      await Logger.logInfo(
+        `Email sent: ${subject}`,
+        '/email-service',
+        'SEND_EMAIL',
+        'system',
+        200,
+        { recipient: to, subject }
+      );
+      
       return { success: true };
     } catch (error) {
-      console.error('❌ Email send error:', error.message);
+      console.error('Email send error:', error.message);
       console.error('Error details:', error);
+      
+      await Logger.logError(
+        `Failed to send email: ${subject} to ${to}`,
+        '/email-service',
+        'SEND_EMAIL',
+        'system',
+        500,
+        error
+      );
+      
       throw { status: 500, message: 'Failed to send email: ' + error.message };
     }
   }
