@@ -1,6 +1,6 @@
-const emailService = require("../utils/emailService");
 const path = require("path");
 const fs = require("fs");
+const emailQueue = require("../queues/emailQueue");
 require("dotenv").config();
 
 // Hardcoded cover letter template (for reference only)
@@ -103,16 +103,32 @@ const coverLetterController = {
         }
       ];
 
-      await emailService.sendEmail(
-        recipientEmail,
-        `Application - ${positionName} at ${companyName}`,
-        htmlContent,
-        attachments
+      // Queue cover letter email (background processing with retries)
+      await emailQueue.add(
+        {
+          type: 'coverLetter',
+          data: {
+            recipientEmail,
+            companyName,
+            positionName,
+            htmlContent,
+            attachments
+          }
+        },
+        {
+          attempts: 3,  // Retry 3 times if fails
+          backoff: {
+            type: 'exponential',
+            delay: 2000  // Start with 2s, then 4s, then 8s
+          },
+          removeOnComplete: true,
+          removeOnFail: false
+        }
       );
 
-      return res.status(200).json({
+      return res.status(202).json({
         success: true,
-        message: `Cover letter sent successfully to ${recipientEmail}`,
+        message: `Cover letter queued successfully. It will be sent to ${recipientEmail} shortly.`,
       });
     } catch (error) {
       console.error("❌ Cover letter send error:", error);
