@@ -2,8 +2,8 @@ const Bull = require('bull');
 const emailService = require('../utils/emailService');
 const emailQueue = require('./emailQueue');
 
-// Create Worker instance from the queue
-const worker = new Bull.Worker('email-queue', async (job) => {
+// Process jobs from queue (Bull v4 API)
+emailQueue.process(async (job) => {
   try {
     const { type, data } = job.data;
     const attempt = job.attemptsMade + 1;
@@ -30,36 +30,34 @@ const worker = new Bull.Worker('email-queue', async (job) => {
     console.error(`❌ [Attempt ${attempt}/3] Email job error:`, error.message);
     throw error; // Rethrow to trigger retry or mark as failed
   }
-}, {
-  connection: emailQueue.client  
 });
 
 // Handle job failures (after all retries exhausted)
-worker.on('failed', (job, error) => {
+emailQueue.on('failed', (job, error) => {
   console.error(`❌ Job ${job.id} FAILED after all retries:`, error.message);
   console.error(`   Email: ${job.data.data.email}`);
 });
 
 // Handle job completions
-worker.on('completed', (job) => {
+emailQueue.on('completed', (job) => {
   console.log(`✅ Job ${job.id} completed successfully`);
 });
 
-// Handle worker ready
-worker.on('ready', () => {
+// Handle queue ready
+emailQueue.on('ready', () => {
   console.log('✅ Email Worker ready and listening for jobs');
 });
 
-// Handle worker errors
-worker.on('error', (error) => {
-  console.error('❌ Worker error:', error.message);
+// Handle queue errors
+emailQueue.on('error', (error) => {
+  console.error('❌ Queue error:', error.message);
 });
 
 // Graceful shutdown
 const gracefulShutdown = async () => {
   console.log('🛑 Shutting down email worker gracefully...');
   try {
-    await worker.close();
+    await emailQueue.close();
     console.log('✅ Email worker closed successfully');
     process.exit(0);
   } catch (error) {
@@ -73,4 +71,4 @@ process.on('SIGINT', gracefulShutdown);
 
 console.log('📧 Email queue worker initialized');
 
-module.exports = worker;
+module.exports = emailQueue;
