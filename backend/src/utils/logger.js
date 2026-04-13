@@ -54,6 +54,15 @@ const Logger = {
     } catch (err) {
       console.error('LogInfo failed:', err);
     }
+  },
+
+  // Simple logging methods for utilities that don't have HTTP context
+  error(message, errorDetails) {
+    console.error(`[ERROR] ${message}`, errorDetails || '');
+  },
+
+  info(message, details) {
+    console.log(`[INFO] ${message}`, details || '');
   }
 };
 

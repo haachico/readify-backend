@@ -99,6 +99,9 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api", coverLetterRoutes);
 
+// Initialize email worker for background job processing
+require("./src/queues/emailWorker");
+
 const { startCronJobs } = require("./src/config/cron");
 
 // 404 Handler - must be BEFORE error handler

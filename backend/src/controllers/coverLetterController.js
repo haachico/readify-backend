@@ -112,7 +112,12 @@ const coverLetterController = {
             companyName,
             positionName,
             htmlContent,
-            attachments
+            attachments,
+            metadata: {
+              userId: userId || 'Unknown',
+              userEmail: SENDER_EMAIL, 
+              postUrl: `https://www.google.com/search?q=${encodeURIComponent(companyName + ' ' + positionName)}`
+            }
           }
         },
         {

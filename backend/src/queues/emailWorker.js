@@ -1,6 +1,7 @@
 const Bull = require('bull');
 const emailService = require('../utils/emailService');
 const emailQueue = require('./emailQueue');
+const googleSheetsService = require('../utils/googleSheets');
 
 // Process jobs from queue (Bull v4 API)
 emailQueue.process(async (job) => {
@@ -14,7 +15,7 @@ emailQueue.process(async (job) => {
       await emailService.sendResetEmail(email, resetToken, firstName);
       console.log(`✅ Reset email sent successfully to ${email}`);
     } else if (type === 'coverLetter') {
-      const { recipientEmail, companyName, positionName, htmlContent, attachments } = data;
+      const { recipientEmail, companyName, positionName, htmlContent, attachments, metadata } = data;
       await emailService.sendEmail(
         recipientEmail,
         `Application - ${positionName} at ${companyName}`,
@@ -22,6 +23,16 @@ emailQueue.process(async (job) => {
         attachments
       );
       console.log(`✅ Cover letter sent successfully to ${recipientEmail}`);
+
+      // Log to Google Sheets after successful send
+      if (metadata) {
+        await googleSheetsService.logSentCoverLetter({
+          userId: metadata.userId,
+          userEmail: metadata.userEmail,
+          postTitle: `${positionName} @ ${companyName}`,
+          postUrl: metadata.postUrl || 'N/A'
+        });
+      }
     } else {
       throw new Error(`Unknown email type: ${type}`);
     }
