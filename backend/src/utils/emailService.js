@@ -1,28 +1,16 @@
-const nodemailer = require('nodemailer');
+const sgMail = require('@sendgrid/mail');
 const Logger = require('./logger');
 require('dotenv').config();
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false,
-  family: 4, // Force IPv4 only (Render doesn't support IPv6 for external SMTP)
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD
-  },
-  tls: {
-    rejectUnauthorized: false
-  }
-});
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 const emailService = {
   async sendResetEmail(email, resetToken, firstName) {
     const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
     
-    const mailOptions = {
-      from: process.env.EMAIL_FROM,
+    const msg = {
       to: email,
+      from: process.env.EMAIL_FROM,
       subject: 'Password Reset Request - Readify',
       html: `
         <h2>Hello ${firstName},</h2>
@@ -36,10 +24,9 @@ const emailService = {
     };
 
     try {
-      await transporter.sendMail(mailOptions);
-      console.log('Email sent successfully to:', email);
+      await sgMail.send(msg);
+      console.log('✅ Email sent successfully to:', email);
       
-      // Log success
       await Logger.logInfo(
         `Password reset email sent to ${email}`,
         '/email-service',
@@ -51,7 +38,7 @@ const emailService = {
       
       return { success: true };
     } catch (error) {
-      console.error('Email send error:', error.message);
+      console.error('❌ Email send error:', error.message);
       console.error('Error details:', error);
       
       await Logger.logError(
@@ -68,18 +55,24 @@ const emailService = {
   },
  
   async sendEmail(to, subject, html, attachments = []) {
-    const mailOptions = {
-      from: process.env.EMAIL_FROM,
+    // Convert attachments from imagekit URLs to proper format
+    const formattedAttachments = attachments.map(att => ({
+      filename: att.filename,
+      href: att.path // SendGrid uses 'href' for URLs
+    }));
+
+    const msg = {
       to,
+      from: process.env.EMAIL_FROM,
       subject,
       html,
-      attachments
+      attachments: formattedAttachments.length > 0 ? formattedAttachments : undefined
     };
+
     try {
-      await transporter.sendMail(mailOptions);
-      console.log('Email sent successfully to:', to);
+      await sgMail.send(msg);
+      console.log('✅ Email sent successfully to:', to);
       
-      // Log success
       await Logger.logInfo(
         `Email sent: ${subject}`,
         '/email-service',
@@ -91,7 +84,7 @@ const emailService = {
       
       return { success: true };
     } catch (error) {
-      console.error('Email send error:', error.message);
+      console.error('❌ Email send error:', error.message);
       console.error('Error details:', error);
       
       await Logger.logError(
