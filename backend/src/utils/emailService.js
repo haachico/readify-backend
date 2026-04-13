@@ -55,11 +55,27 @@ const emailService = {
   },
  
   async sendEmail(to, subject, html, attachments = []) {
-    // Convert attachments from imagekit URLs to proper format
-    const formattedAttachments = attachments.map(att => ({
-      filename: att.filename,
-      href: att.path // SendGrid uses 'href' for URLs
-    }));
+    // Convert URL attachments to base64 for SendGrid
+    let formattedAttachments = [];
+    
+    if (attachments.length > 0) {
+      for (const att of attachments) {
+        try {
+          const response = await fetch(att.path);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const buffer = await response.arrayBuffer();
+          const base64 = Buffer.from(buffer).toString('base64');
+          formattedAttachments.push({
+            content: base64,
+            filename: att.filename,
+            type: 'application/pdf' // Assuming PDF from cover letter
+          });
+        } catch (error) {
+          console.warn(`⚠️ Failed to fetch attachment ${att.filename}:`, error.message);
+          // Continue sending email even if attachment fails
+        }
+      }
+    }
 
     const msg = {
       to,
