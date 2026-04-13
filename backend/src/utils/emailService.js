@@ -40,6 +40,9 @@ const emailService = {
     } catch (error) {
       console.error('❌ Email send error:', error.message);
       console.error('Error details:', error);
+      if (error.response?.body?.errors) {
+        console.error('SendGrid errors:', JSON.stringify(error.response.body.errors, null, 2));
+      }
       
       await Logger.logError(
         `Failed to send password reset email to ${email}`,
@@ -102,6 +105,9 @@ const emailService = {
     } catch (error) {
       console.error('❌ Email send error:', error.message);
       console.error('Error details:', error);
+      if (error.response?.body?.errors) {
+        console.error('SendGrid errors:', JSON.stringify(error.response.body.errors, null, 2));
+      }
       
       await Logger.logError(
         `Failed to send email: ${subject} to ${to}`,
