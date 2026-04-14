@@ -1,11 +1,34 @@
 const { google } = require('googleapis');
 const path = require('path');
+const fs = require('fs');
 const logger = require('./logger');
 
-const auth = new google.auth.GoogleAuth({
-    keyFile: path.join(__dirname, '../../google-sheets-key.json'),
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-});
+let auth;
+
+// Check if credentials are in environment variable first, then file
+if (process.env.GOOGLE_SHEETS_CREDENTIALS) {
+    try {
+        const credentials = JSON.parse(process.env.GOOGLE_SHEETS_CREDENTIALS);
+        auth = new google.auth.GoogleAuth({
+            credentials,
+            scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+        });
+    } catch (error) {
+        logger.error('Failed to parse GOOGLE_SHEETS_CREDENTIALS env var:', error.message);
+        throw error;
+    }
+} else {
+    // Fallback to file-based credentials
+    const keyFilePath = path.join(__dirname, '../../google-sheets-key.json');
+    if (fs.existsSync(keyFilePath)) {
+        auth = new google.auth.GoogleAuth({
+            keyFile: keyFilePath,
+            scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+        });
+    } else {
+        throw new Error('Google Sheets credentials not found. Set GOOGLE_SHEETS_CREDENTIALS env var or place google-sheets-key.json in backend root.');
+    }
+}
 
 const sheets = google.sheets({ version: 'v4', auth });
 const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
