@@ -8,23 +8,42 @@ let auth;
 // Check if credentials are in environment variable first, then file
 if (process.env.GOOGLE_SHEETS_CREDENTIALS) {
     try {
-        // Handle both properly escaped JSON and JSON with actual newlines
         let credentialsStr = process.env.GOOGLE_SHEETS_CREDENTIALS;
-        // Replace actual newlines with escaped newlines for proper JSON parsing
-        credentialsStr = credentialsStr.replace(/\n/g, '\\n');
-        const credentials = JSON.parse(credentialsStr);
+        
+        // Parse the JSON string directly
+        let credentials = JSON.parse(credentialsStr);
+        
+        // The private_key should already have \n escaped properly
+        // If it contains literal '\\n' strings, convert them to actual newlines
+        if (credentials.private_key && typeof credentials.private_key === 'string') {
+            // Convert escaped newlines to actual newlines
+            credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
+        }
+        
+        // Verify required fields exist
+        if (!credentials.private_key) {
+            throw new Error('Missing private_key in credentials');
+        }
+        if (!credentials.client_email) {
+            throw new Error('Missing client_email in credentials');
+        }
+        
+        logger.info('Google Sheets credentials loaded from environment variable');
+        
         auth = new google.auth.GoogleAuth({
             credentials,
             scopes: ['https://www.googleapis.com/auth/spreadsheets'],
         });
     } catch (error) {
         logger.error('Failed to parse GOOGLE_SHEETS_CREDENTIALS env var:', error.message);
+        logger.error('Error stack:', error.stack);
         throw error;
     }
 } else {
     // Fallback to file-based credentials
     const keyFilePath = path.join(__dirname, '../../google-sheets-key.json');
     if (fs.existsSync(keyFilePath)) {
+        logger.info('Google Sheets credentials loaded from file:', keyFilePath);
         auth = new google.auth.GoogleAuth({
             keyFile: keyFilePath,
             scopes: ['https://www.googleapis.com/auth/spreadsheets'],
@@ -43,6 +62,12 @@ const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
  */
 const logSentCoverLetter = async (data) => {
     try {
+        // Validate spreadsheet ID
+        if (!SPREADSHEET_ID) {
+            logger.error('GOOGLE_SHEET_ID is not set in environment variables');
+            return;
+        }
+
         const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
         const values = [
             [
