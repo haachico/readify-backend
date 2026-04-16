@@ -1,103 +1,120 @@
 const { google } = require('googleapis');
-const path = require('path');
-const fs = require('fs');
 const logger = require('./logger');
 
 let auth;
+let sheets;
+let SPREADSHEET_ID;
 
-// Check if credentials are in environment variable first, then file
-if (process.env.GOOGLE_SHEETS_CREDENTIALS) {
+// Initialize Google Sheets
+const initGoogleSheets = async () => {
     try {
-        let credentialsStr = process.env.GOOGLE_SHEETS_CREDENTIALS;
+        SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
         
-        // Parse the JSON string directly
-        let credentials = JSON.parse(credentialsStr);
-        
-        // The private_key should already have \n escaped properly
-        // If it contains literal '\\n' strings, convert them to actual newlines
-        if (credentials.private_key && typeof credentials.private_key === 'string') {
-            // Convert escaped newlines to actual newlines
-            credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
+        if (!SPREADSHEET_ID) {
+            logger.error('❌ GOOGLE_SHEET_ID is not set');
+            return false;
         }
-        
-        // Verify required fields exist
+
+        // Build credentials from individual environment variables
+        const credentials = {
+            type: process.env.GOOGLE_TYPE || 'service_account',
+            project_id: process.env.GOOGLE_PROJECT_ID,
+            private_key_id: process.env.GOOGLE_PRIVATE_KEY_ID,
+            private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+            client_email: process.env.GOOGLE_CLIENT_EMAIL,
+            client_id: process.env.GOOGLE_CLIENT_ID,
+            auth_uri: process.env.GOOGLE_AUTH_URI,
+            token_uri: process.env.GOOGLE_TOKEN_URI,
+            auth_provider_x509_cert_url: process.env.GOOGLE_AUTH_PROVIDER_X509_CERT_URL,
+            client_x509_cert_url: process.env.GOOGLE_CLIENT_X509_CERT_URL,
+            universe_domain: process.env.GOOGLE_UNIVERSE_DOMAIN
+        };
+
+        // Validate required fields
         if (!credentials.private_key) {
-            throw new Error('Missing private_key in credentials');
+            logger.error('❌ GOOGLE_PRIVATE_KEY is missing');
+            return false;
         }
         if (!credentials.client_email) {
-            throw new Error('Missing client_email in credentials');
+            logger.error('❌ GOOGLE_CLIENT_EMAIL is missing');
+            return false;
         }
-        
-        logger.info('Google Sheets credentials loaded from environment variable');
-        
+
+        logger.info('✅ Google Sheets credentials loaded from individual env vars');
+
         auth = new google.auth.GoogleAuth({
             credentials,
             scopes: ['https://www.googleapis.com/auth/spreadsheets'],
         });
+
+        sheets = google.sheets({ version: 'v4', auth });
+        
+        // Test the connection
+        await testConnection();
+        
+        return true;
     } catch (error) {
-        logger.error('Failed to parse GOOGLE_SHEETS_CREDENTIALS env var:', error.message);
-        logger.error('Error stack:', error.stack);
+        logger.error('❌ Failed to initialize Google Sheets:', error.message);
+        return false;
+    }
+};
+
+// Test the connection
+const testConnection = async () => {
+    try {
+        const response = await sheets.spreadsheets.get({
+            spreadsheetId: SPREADSHEET_ID,
+            includeGridData: false
+        });
+        logger.info(`✅ Google Sheets connected: ${response.data.properties.title}`);
+    } catch (error) {
+        logger.error('❌ Google Sheets connection test failed:', error.message);
         throw error;
     }
-} else {
-    // Fallback to file-based credentials
-    const keyFilePath = path.join(__dirname, '../../google-sheets-key.json');
-    if (fs.existsSync(keyFilePath)) {
-        logger.info('Google Sheets credentials loaded from file:', keyFilePath);
-        auth = new google.auth.GoogleAuth({
-            keyFile: keyFilePath,
-            scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-        });
-    } else {
-        throw new Error('Google Sheets credentials not found. Set GOOGLE_SHEETS_CREDENTIALS env var or place google-sheets-key.json in backend root.');
-    }
-}
-
-const sheets = google.sheets({ version: 'v4', auth });
-const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
+};
 
 /**
  * Appends a row to the Google Sheet when a cover letter is sent.
- * @param {Object} data - Information to log { userId, userEmail, postTitle, postUrl }
  */
 const logSentCoverLetter = async (data) => {
     try {
-        // Validate spreadsheet ID
-        if (!SPREADSHEET_ID) {
-            logger.error('GOOGLE_SHEET_ID is not set in environment variables');
-            return;
+        // Initialize if not already done
+        if (!sheets) {
+            const initialized = await initGoogleSheets();
+            if (!initialized) {
+                logger.error('❌ Google Sheets not initialized, skipping log');
+                return;
+            }
         }
 
         const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
-        const values = [
-            [
-                timestamp,
-                data.userId || 'N/A',
-                data.userEmail || 'N/A',
-                data.postTitle || 'N/A',
-                data.postUrl || 'N/A',
-                'SUCCESSFUL'
-            ]
-        ];
-
-        const resource = {
-            values,
-        };
+        const values = [[
+            timestamp,
+            data.userId || 'N/A',
+            data.userEmail || 'N/A',
+            data.postTitle || 'N/A',
+            data.postUrl || 'N/A',
+            'SUCCESSFUL'
+        ]];
 
         await sheets.spreadsheets.values.append({
             spreadsheetId: SPREADSHEET_ID,
             range: 'Sheet1!A:F',
             valueInputOption: 'RAW',
-            resource,
+            requestBody: { values },
         });
 
-        logger.info(`Google Sheet updated for user ${data.userEmail}`);
+        logger.info(`✅ Google Sheet updated for ${data.userEmail}`);
     } catch (error) {
-        logger.error('Error updating Google Sheet:', error.message);
-        // We don't throw error here to avoid failing the email job if only logging fails
+        logger.error('❌ Error updating Google Sheet:', error.message);
+        // Don't throw - email already sent successfully
     }
 };
 
+// Initialize on module load
+initGoogleSheets();
+
 module.exports = {
-    logSentCoverLetter
+    logSentCoverLetter,
+    initGoogleSheets
 };
