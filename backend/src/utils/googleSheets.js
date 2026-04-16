@@ -8,7 +8,11 @@ let auth;
 // Check if credentials are in environment variable first, then file
 if (process.env.GOOGLE_SHEETS_CREDENTIALS) {
     try {
-        const credentials = JSON.parse(process.env.GOOGLE_SHEETS_CREDENTIALS);
+        // Handle both properly escaped JSON and JSON with actual newlines
+        let credentialsStr = process.env.GOOGLE_SHEETS_CREDENTIALS;
+        // Replace actual newlines with escaped newlines for proper JSON parsing
+        credentialsStr = credentialsStr.replace(/\n/g, '\\n');
+        const credentials = JSON.parse(credentialsStr);
         auth = new google.auth.GoogleAuth({
             credentials,
             scopes: ['https://www.googleapis.com/auth/spreadsheets'],
