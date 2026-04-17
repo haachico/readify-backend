@@ -1,5 +1,5 @@
 const https = require('https');
-const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
 const fs = require('fs');
 const path = require('path');
 const logger = require('./logger');
@@ -13,7 +13,16 @@ let serviceAccount = null;
 try {
     if (fs.existsSync(SERVICE_ACCOUNT_FILE)) {
         serviceAccount = JSON.parse(fs.readFileSync(SERVICE_ACCOUNT_FILE, 'utf8'));
+        
+        // Fix private key if it has escaped newlines
+        if (serviceAccount.private_key && serviceAccount.private_key.includes('\\n')) {
+            serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+            logger.info('✅ Fixed private key newlines');
+        }
+        
         logger.info('✅ Google Sheets service account loaded from file');
+        logger.info('Client email:', serviceAccount.client_email);
+        logger.info('Private key starts with:', serviceAccount.private_key.substring(0, 50));
     } else {
         logger.error('❌ google-sheets-key.json not found at', SERVICE_ACCOUNT_FILE);
     }
@@ -32,7 +41,7 @@ async function getGoogleAccessToken() {
                 return;
             }
 
-            // Create JWT
+            // Create JWT using jsonwebtoken library
             const now = Math.floor(Date.now() / 1000);
             const payload = {
                 iss: serviceAccount.client_email,
@@ -42,25 +51,17 @@ async function getGoogleAccessToken() {
                 iat: now
             };
 
-            const header = { alg: 'RS256', typ: 'JWT' };
-            
-            const base64encode = (str) => Buffer.from(JSON.stringify(str)).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-            const headerEncoded = base64encode(header);
-            const payloadEncoded = base64encode(payload);
-            const message = `${headerEncoded}.${payloadEncoded}`;
+            const token = jwt.sign(payload, serviceAccount.private_key, { 
+                algorithm: 'RS256',
+                header: { alg: 'RS256', typ: 'JWT' }
+            });
 
-            // Sign with private key
-            const signature = crypto.sign('sha256', Buffer.from(message), {
-                key: serviceAccount.private_key,
-                format: 'pem'
-            }).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-
-            const jwt = `${message}.${signature}`;
+            logger.info('✅ JWT created successfully');
 
             // Exchange JWT for access token
             const tokenData = new URLSearchParams({
                 grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-                assertion: jwt
+                assertion: token
             }).toString();
 
             const options = {
@@ -80,11 +81,14 @@ async function getGoogleAccessToken() {
                     try {
                         const result = JSON.parse(data);
                         if (result.access_token) {
+                            logger.info('✅ Got Google access token');
                             resolve(result.access_token);
                         } else {
-                            reject(new Error('No access token in response'));
+                            logger.error('❌ Google API error:', JSON.stringify(result, null, 2));
+                            reject(new Error(`Google error: ${result.error} - ${result.error_description}`));
                         }
                     } catch (e) {
+                        logger.error('❌ Failed to parse Google response:', data);
                         reject(e);
                     }
                 });
@@ -94,6 +98,7 @@ async function getGoogleAccessToken() {
             request.write(tokenData);
             request.end();
         } catch (error) {
+            logger.error('❌ JWT creation failed:', error.message);
             reject(error);
         }
     });
