@@ -2,7 +2,13 @@ const https = require('https');
 const jwt = require('jsonwebtoken');
 const fs = require('fs');
 const path = require('path');
-const logger = require('./logger');
+
+// Use custom logging function to avoid logger.info/logger.error issues
+const safeLog = (level, ...args) => {
+    const timestamp = new Date().toISOString();
+    const color = level === 'ERROR' ? '\x1b[31m' : '\x1b[32m';
+    console.log(`${color}[${timestamp}] [SHEETS_${level}]\x1b[0m`, ...args);
+};
 
 const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SERVICE_ACCOUNT_FILE = path.join(__dirname, '../../google-sheets-key.json');
@@ -17,17 +23,16 @@ try {
         // Fix private key if it has escaped newlines
         if (serviceAccount.private_key && serviceAccount.private_key.includes('\\n')) {
             serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
-            logger.info('✅ Fixed private key newlines');
+            safeLog('INFO', '✅ Fixed private key newlines');
         }
         
-        logger.info('✅ Google Sheets service account loaded from file');
-        logger.info('Client email:', serviceAccount.client_email);
-        logger.info('Private key starts with:', serviceAccount.private_key.substring(0, 50));
+        safeLog('INFO', '✅ Google Sheets service account loaded from file');
+        safeLog('INFO', 'Client email:', serviceAccount.client_email);
     } else {
-        logger.error('❌ google-sheets-key.json not found at', SERVICE_ACCOUNT_FILE);
+        safeLog('ERROR', '❌ google-sheets-key.json not found at', SERVICE_ACCOUNT_FILE);
     }
 } catch (error) {
-    logger.error('❌ Failed to load google-sheets-key.json:', error.message);
+    safeLog('ERROR', '❌ Failed to load google-sheets-key.json:', error.message);
 }
 
 /**
@@ -56,8 +61,6 @@ async function getGoogleAccessToken() {
                 header: { alg: 'RS256', typ: 'JWT' }
             });
 
-            logger.info('✅ JWT created successfully');
-
             // Exchange JWT for access token
             const tokenData = new URLSearchParams({
                 grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
@@ -81,14 +84,13 @@ async function getGoogleAccessToken() {
                     try {
                         const result = JSON.parse(data);
                         if (result.access_token) {
-                            logger.info('✅ Got Google access token');
                             resolve(result.access_token);
                         } else {
-                            logger.error('❌ Google API error:', JSON.stringify(result, null, 2));
+                            safeLog('ERROR', '❌ Google API error:', JSON.stringify(result, null, 2));
                             reject(new Error(`Google error: ${result.error} - ${result.error_description}`));
                         }
                     } catch (e) {
-                        logger.error('❌ Failed to parse Google response:', data);
+                        safeLog('ERROR', '❌ Failed to parse Google response:', data);
                         reject(e);
                     }
                 });
@@ -98,7 +100,7 @@ async function getGoogleAccessToken() {
             request.write(tokenData);
             request.end();
         } catch (error) {
-            logger.error('❌ JWT creation failed:', error.message);
+            safeLog('ERROR', '❌ JWT creation failed:', error.message);
             reject(error);
         }
     });
@@ -152,7 +154,7 @@ async function appendToSheet(values) {
 const logSentCoverLetter = async (data) => {
     try {
         if (!serviceAccount || !SPREADSHEET_ID) {
-            logger.error('❌ Google Sheets not configured, skipping log');
+            safeLog('ERROR', '❌ Google Sheets not configured, skipping log');
             return;
         }
 
@@ -167,9 +169,9 @@ const logSentCoverLetter = async (data) => {
         ];
 
         await appendToSheet(values);
-        logger.info(`✅ Google Sheet updated for user ${data.userEmail}`);
+        safeLog('INFO', `✅ Google Sheet updated for user ${data.userEmail}`);
     } catch (error) {
-        logger.error('❌ Error updating Google Sheet:', error.message);
+        safeLog('ERROR', '❌ Error updating Google Sheet:', error.message);
         // Don't throw - don't block email if sheets fails
     }
 };

@@ -188,6 +188,30 @@ GET    /api/users/getFollowers/:userId       # Get followers list (auth)
 GET    /api/users/getFollowing/:userId       # Get following list (auth)
 ```
 
+### Cover Letter (Admin Only)
+
+```
+POST   /api/cover-letter/send        # Send cover letter to company (admin auth)
+```
+
+**Request Body:**
+
+```json
+{
+  "recipientEmail": "hiring@company.com",
+  "companyName": "Acme Corp",
+  "positionName": "Senior Developer"
+}
+```
+
+**Features:**
+
+- Sends templated cover letter
+- Attaches resume PDF
+- Logs application to Google Sheets
+- Queued for async delivery
+- Only accessible to admin user
+
 ### AI Features
 
 ```
@@ -212,26 +236,38 @@ POST   /api/ai/validate-post         # Validate if post is book-related (auth)
 
 ---
 
-## 🔐 Authentication Flow
+## 🔐 Authentication Flow (Dual-Token Pattern)
 
 ```
 1. User Signs Up/Logs In
-   └─ Password hashed with bcrypt
-   └─ JWT accessToken (15 min) + refreshToken (7 days) generated
-   └─ refreshToken stored in DB
+   └─ Password hashed with bcrypt (salt rounds: 10)
+   └─ JWT accessToken (15 min) generated → stored in localStorage (frontend)
+   └─ JWT refreshToken (7 days) generated → stored in httpOnly cookie
+   └─ refreshToken persisted in DB for revocation tracking
 
 2. Protected Routes Check JWT
-   └─ authMiddleware verifies token
-   └─ Token blacklist checked (Redis)
-   └─ req.auth = decoded token payload
+   └─ authMiddleware extracts token from Authorization header
+   └─ Verifies JWT signature using JWT_SECRET
+   └─ Checks if token revoked in DB (instant logout)
+   └─ req.auth = decoded token payload { userId, username }
 
-3. Token Refresh
-   └─ Old token expires → POST /refresh-token
-   └─ New accessToken issued
+3. Token Refresh (Automatic)
+   └─ Frontend detects 401 response (token expired)
+   └─ Automatically calls POST /api/auth/refresh-token
+   └─ Sends old refreshToken from httpOnly cookie
+   └─ Backend validates & returns new accessToken (15 min)
+   └─ Frontend retries original request (~150ms, seamless UX)
 
-4. Logout
-   └─ Token added to blacklist (Redis)
-   └─ Token invalidated for 7 days
+4. Logout (Instant Revocation)
+   └─ POST /api/auth/logout removes token from DB
+   └─ Token added to Redis blacklist (7 days)
+   └─ Token immediately invalid (can't be refreshed)
+
+**Why Dual-Token?**
+- Short-lived access token: Limits damage if compromised
+- Refresh token in httpOnly cookie: Can't be stolen by JavaScript
+- Stateless API: Enables horizontal scaling
+- Instant logout: Database check prevents replay attacks
 ```
 
 ---
@@ -252,7 +288,7 @@ POST   /api/ai/validate-post         # Validate if post is book-related (auth)
 
 ---
 
-## 🔔 Notification System
+## 🔔 Notification System (Polling-Based)
 
 ### Notification Triggers
 
@@ -262,19 +298,47 @@ Notifications are automatically created for:
 - **Comment**: When someone comments on your post
 - **Reply**: When someone replies to your comment
 - **Bookmark**: When someone bookmarks your post
+- **Follow**: When someone follows you
 
 ### Notification Features
 
+- ✅ **Real-time Polling**: Frontend polls every 30 seconds for new notifications
 - ✅ Unread count tracking
 - ✅ Mark single notification as read
 - ✅ Mark all notifications as read
-- ✅ Retrieve notification history
-- ✅ Store in MySQL (persistent)
+- ✅ Retrieve full notification history
+- ✅ Store in MySQL (persistent, survives server restart)
+- ✅ Automatic cleanup of old notifications
 
-### Real-time Features (Future)
+### Implementation Details
 
-- WebSocket support (can be added)
-- Email notifications (can be added)
+**Polling Flow:**
+
+```
+Frontend (every 30s)
+  ↓
+GET /api/notifications (with JWT auth)
+  ↓
+Backend checks database for unread
+  ↓
+Returns: { unreadCount, notifications: [...] }
+  ↓
+Frontend updates UI
+```
+
+**Why Polling Instead of WebSocket?**
+
+- Simpler architecture (no persistent connections)
+- Works with Render & shared hosting
+- Acceptable for moderate traffic
+- Easy to scale horizontally
+- Fallback if connection drops
+
+### Future Enhancements
+
+- WebSocket support (real-time, zero delay)
+- Email notifications on new engagement
+- Notification preferences (on/off per event type)
 
 ---
 
@@ -293,20 +357,7 @@ Notifications are automatically created for:
 
 ## 🤖 AI Features (Google Gemini)
 
-### Post Improvement
-
-```
-POST /api/ai/improve-post
-Body: { "text": "user's post content" }
-Response: { "improvedText": "enhanced post text" }
-```
-
-- Uses Gemini 2.5 Flash model
-- Makes posts more engaging & compelling
-- Preserves original meaning
-- Returns improved text for display
-
-### Post Validation
+### Post Validation (Hard Gate) ⭐
 
 ```
 POST /api/ai/validate-post
@@ -314,34 +365,65 @@ Body: { "text": "user's post content" }
 Response: { "isBookRelated": true/false }
 ```
 
-- Validates if post is book-related
-- Returns YES/NO based on Gemini analysis
-- Prevents non-book content from being posted
+**What it does:**
+
+- Validates if post is about books/reading/authors/literature
+- Returns YES/NO based on Gemini 2.5 Flash model
+- If YES → User can post (with or without image)
+- If NO → Post is blocked (neither text nor image is saved)
+
+**Why It Matters:**
+
 - Keeps community focused on books & reading
+- Prevents spam/off-topic content
+- Enforced before image upload (efficient)
+- Mandatory gate (cannot be bypassed by users)
 
-### How It Works
+**Frontend Flow:**
 
-1. **Improvement Flow**
-   - User writes post
-   - Frontend calls `/api/ai/improve-post`
-   - Gemini enhances the text
-   - Improved version shown to user
-   - User can accept or edit further
+```
+1. User enters post content + optional image
+2. Clicks "Post" button
+3. Frontend calls POST /api/ai/validate-post
+4. If isBookRelated = false → Show alert, BLOCK post ✗
+5. If isBookRelated = true → Upload image (if any), Create post ✅
+```
 
-2. **Validation Flow**
-   - User submits post
-   - Frontend calls `/api/ai/validate-post`
-   - Gemini checks if book-related
-   - If YES → Post allowed
-   - If NO → Error message, post rejected
+### Post Improvement (Optional Enhancement)
+
+```
+POST /api/ai/improve-post
+Body: { "text": "user's post content" }
+Response: { "improvedText": "enhanced post text" }
+```
+
+**What it does:**
+
+- Takes user's post text
+- Uses Gemini to make it more engaging & compelling
+- Preserves original meaning & intent
+- Returns improved version
+
+**Frontend Flow:**
+
+```
+1. User writes post
+2. Clicks "Improve" (optional button)
+3. Frontend calls POST /api/ai/improve-post
+4. Gemini returns enhanced text
+5. Improved version shown to user in editor
+6. User can accept, edit further, or keep original
+```
 
 ### Configuration
 
 ```env
-AI_API_KEY=your_google_gemini_api_key
+GEMINI_API_KEY=your_google_gemini_api_key
 ```
 
-Get from: [Google AI Studio](https://aistudio.google.com/)
+Get API key from: [Google AI Studio](https://aistudio.google.com/)
+
+**Note:** Both endpoints require authentication (auth token)
 
 ---
 
@@ -363,7 +445,112 @@ Request
 
 ---
 
-## 🚨 Error Handling
+## � Async Email Queue (Bull + Redis)
+
+### Overview
+
+Password reset and cover letter emails are sent asynchronously using **Bull queue** to:
+
+- Prevent blocking the main request
+- Ensure emails are retried if sending fails
+- Persist jobs in Redis (survive server restart)
+- Track email delivery status
+
+### Email Types
+
+1. **Password Reset Email**
+   - Triggered by `POST /api/auth/forgot-password`
+   - Sends reset link (valid for 1 hour)
+   - Retries automatically
+
+2. **Cover Letter Email**
+   - Triggered by `POST /api/cover-letter/send`
+   - Attaches resume PDF
+   - Logs to Google Sheets
+   - Retries automatically
+
+### Retry Logic
+
+```
+Job Processing Flow:
+  ↓
+1st Attempt (fails)
+  ↓ Wait 2 seconds
+2nd Attempt (fails)
+  ↓ Wait 4 seconds
+3rd Attempt (fails)
+  ↓ Wait 8 seconds
+4th Attempt (fails)
+  ↓
+Job discarded, logged as ERROR
+
+**Result:** Max 3 retries over ~14 seconds
+```
+
+**Configuration:**
+
+```env
+REDIS_URL=redis://localhost:6379
+EMAIL_USER=your_email@gmail.com
+EMAIL_PASSWORD=your_app_password
+```
+
+**Monitoring Jobs:**
+
+```javascript
+// Check queue status
+const queueStatus = await emailQueue.count();
+console.log(`Pending emails: ${queueStatus}`);
+
+// Process jobs
+emailQueue.process(async (job) => {
+  console.log(`Processing email: ${job.id}`);
+  // Job data in job.data
+});
+```
+
+---
+
+## ⏰ Scheduled Tasks (Cron Jobs)
+
+### Background Jobs
+
+The backend runs scheduled tasks using **node-cron** (runs on server, not in queue):
+
+### Expired Token Cleanup
+
+**Schedule:** Every hour at minute 0 (e.g., 10:00, 11:00, 12:00)
+
+**What it does:**
+
+1. Queries database for expired password reset tokens
+2. Counts tokens with `reset_token_expiry < NOW()`
+3. Deletes expired tokens from users table
+4. Logs activity to database (level: INFO)
+5. Sends email report to admin
+
+**Example Log:**
+
+```json
+{
+  "timestamp": "2026-05-21T14:00:00Z",
+  "job": "Expired Token Cleanup",
+  "status": "SUCCESS",
+  "tokensExpired": 5,
+  "tokensDeleted": 5
+}
+```
+
+**Why This Matters:**
+
+- Prevents accumulation of stale reset tokens
+- Keeps database clean
+- Audit trail for compliance
+- Early warning if too many failures
+
+---
+
+## �🚨 Error Handling
 
 All errors follow this format:
 
@@ -482,9 +669,33 @@ curl -X POST http://localhost:5000/api/posts \
    - Import schema/dump file
    - Update MYSQL_HOST in .env
 
-4. **Deploy**
+4. **Redis Setup**
+   - Create Redis instance on Redis Cloud (free tier available)
+   - Update REDIS_URL in .env
+   - Used for: token blacklist, email queue, rate limiting
+
+5. **Deploy**
    - Render auto-deploys on git push
    - Monitor logs in Render dashboard
+   - Check cron jobs are running (check logs)
+
+### ⚠️ Render Free Tier: Cold Start Delay
+
+**Important:** Render's free tier spins down after 15 minutes of inactivity.
+
+**What You'll Experience:**
+
+- First request after inactivity = **30-50 second delay** ⏳
+- Backend server is "waking up" from sleep
+- Subsequent requests are instant ⚡
+- **This does NOT affect paid hosting** (standard/pro plans have no spin-down)
+
+**Mitigation Options:**
+
+1. Upgrade to paid Render plan (no cold start)
+2. Use external uptime monitor to ping every 15 min
+3. Warn users about initial load time
+4. Inform interviewer about this limitation
 
 ### Important Notes
 
@@ -492,6 +703,8 @@ curl -X POST http://localhost:5000/api/posts \
 - ⚠️ Images stored in ImageKit (not local disk)
 - ⚠️ Use cloud database (not local XAMPP)
 - ⚠️ Redis instance needed (Render or Redis Cloud)
+- ⚠️ Cron jobs only run on one instance (no horizontal scaling of cron)
+- ⚠️ Monitor email queue depth (if emails pile up, investigate)
 
 ---
 
@@ -500,14 +713,18 @@ curl -X POST http://localhost:5000/api/posts \
 - **Runtime**: Node.js v14+
 - **Framework**: Express.js
 - **Database**: MySQL 8.0
-- **Cache**: Redis
+- **Cache & Queue**: Redis
 - **Auth**: JWT (jsonwebtoken)
 - **Password**: bcryptjs
-- **Email**: Nodemailer
-- **File Upload**: multer + ImageKit
+- **Email**: Nodemailer (SMTP)
+- **Email Queue**: Bull (job queue)
+- **Scheduled Tasks**: node-cron
+- **AI Integration**: Google Generative AI (Gemini 2.5 Flash)
+- **File Upload**: multer + ImageKit CDN
 - **Logging**: Custom logger to DB
 - **Rate Limiting**: express-rate-limit
 - **CORS**: cors middleware
+- **Google Sheets**: googleapis (for cover letter logging)
 
 ---
 
@@ -521,7 +738,38 @@ curl -X POST http://localhost:5000/api/posts \
 
 ---
 
-## 📄 License
+## � Quick Reference: What's Implemented
+
+✅ **Core Features**
+
+- User authentication (signup, login, OAuth, password reset)
+- Posts with AI validation & image uploads
+- Comments & nested replies
+- Like/Unlike & Bookmark features
+- Follow/Unfollow system
+- Real-time notifications (30s polling)
+
+✅ **Advanced Features**
+
+- **AI-Powered Post Validation** (Gemini) - blocks non-book posts
+- **Async Email Queue** (Bull) - 3 retries with backoff
+- **Cron Jobs** - hourly token cleanup
+- **Cover Letter Generator** - sends to companies with resume
+- **Google Sheets Logging** - tracks applications
+- **JWT Dual-Token** - access + refresh pattern
+- **Rate Limiting** - prevents abuse
+- **Request Logging** - all activities logged to DB
+
+✅ **Infrastructure**
+
+- ImageKit CDN - image storage & optimization
+- Redis - caching, queues, rate limiting, token blacklist
+- MySQL - relational database
+- Render - deployment (free tier with cold start)
+
+---
+
+## �📄 License
 
 This project is private. All rights reserved.
 
@@ -533,4 +781,4 @@ This project is private. All rights reserved.
 - **Backend**: Node.js + Express
 - **Database**: MySQL + Redis
 
-Last Updated: March 2026
+Last Updated: May 21, 2026
