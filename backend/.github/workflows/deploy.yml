@@ -23,7 +23,7 @@ jobs:
 
       # Step 4: Push image to registry
       - name: Push image to registry
-        run: docker push ghcr.io/${{ github.repository }}/backend:latest
+        run: docker push ghcr.io/${{ github.repository }}:latest
 
       # Step 5: Trigger Render deployment
       - name: Trigger Render deployment
