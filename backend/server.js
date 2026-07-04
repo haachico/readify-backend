@@ -3,45 +3,45 @@ const cors = require("cors");
 const path = require("path");
 require("dotenv").config();
 
+// Docker deployment test - July 4, 2026
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 const REQUIRED_ENVS = [
-  'MYSQL_HOST',
-  'MYSQL_USER',
-  'MYSQL_PASSWORD',
-  'JWT_SECRET',
-  'JWT_REFRESH_SECRET',
-  'REDIS_URL',
-  'EMAIL_USER',
-  'EMAIL_PASSWORD',
-  'EMAIL_FROM',
-  'FRONTEND_URL',
-  'BACKEND_URL',
-  'GOOGLE_CLIENT_ID',
-  'AI_API_KEY',
-  'ADMIN_USER_ID',
-  'IMAGEKIT_PUBLIC_KEY',
-  'IMAGEKIT_PRIVATE_KEY',
-  'IMAGEKIT_URL_ENDPOINT'
+  "MYSQL_HOST",
+  "MYSQL_USER",
+  "MYSQL_PASSWORD",
+  "JWT_SECRET",
+  "JWT_REFRESH_SECRET",
+  "REDIS_URL",
+  "EMAIL_USER",
+  "EMAIL_PASSWORD",
+  "EMAIL_FROM",
+  "FRONTEND_URL",
+  "BACKEND_URL",
+  "GOOGLE_CLIENT_ID",
+  "AI_API_KEY",
+  "ADMIN_USER_ID",
+  "IMAGEKIT_PUBLIC_KEY",
+  "IMAGEKIT_PRIVATE_KEY",
+  "IMAGEKIT_URL_ENDPOINT",
 ];
-
 
 const hasMySQLDb = process.env.MYSQL_DATABASE || process.env.MYSQL_NAME;
 
-const missingEnvs = REQUIRED_ENVS.filter(env => !process.env[env]);
+const missingEnvs = REQUIRED_ENVS.filter((env) => !process.env[env]);
 
 if (!hasMySQLDb) {
-  missingEnvs.push('MYSQL_DATABASE or MYSQL_NAME');
+  missingEnvs.push("MYSQL_DATABASE or MYSQL_NAME");
 }
 
 if (missingEnvs.length > 0) {
-  console.error(' Missing required environment variables:');
-  missingEnvs.forEach(env => console.error(`   - ${env}`));
+  console.error(" Missing required environment variables:");
+  missingEnvs.forEach((env) => console.error(`   - ${env}`));
   process.exit(1);
 }
 
-console.log('✅ All required environment variables present');
+console.log("✅ All required environment variables present");
 // Middleware
 const cookieParser = require("cookie-parser");
 const allowedOrigins = [
@@ -109,25 +109,25 @@ app.use((req, res) => {
   res.status(404).json({
     error: "Not Found",
     message: `Route ${req.method} ${req.originalUrl} does not exist`,
-    path: req.originalUrl
+    path: req.originalUrl,
   });
 });
 
 app.use((err, req, res, next) => {
   const statusCode = err.status || err.statusCode || 500;
-  const isDevelopment = process.env.NODE_ENV !== 'production';
-  
+  const isDevelopment = process.env.NODE_ENV !== "production";
+
   console.error(`[${new Date().toISOString()}] ${err.message}`);
   console.error(`   Method: ${req.method} ${req.originalUrl}`);
   console.error(`   Status: ${statusCode}`);
   if (isDevelopment) console.error(`   Stack: ${err.stack}`);
 
-  const message = isDevelopment ? err.message : 'Internal Server Error';
-  
+  const message = isDevelopment ? err.message : "Internal Server Error";
+
   res.status(statusCode).json({
-    error: err.name || 'Error',
+    error: err.name || "Error",
     message: message,
-    ...(isDevelopment && { stack: err.stack })
+    ...(isDevelopment && { stack: err.stack }),
   });
 });
 
